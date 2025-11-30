@@ -15,10 +15,10 @@ import {
   ChevronRight,
   HeartPulse,
   FileDown,
-  Mic,       // Added
-  Share2,    // Added
-  History,   // Added
-  Trash2     // Added
+  Mic,       
+  Share2,    
+  History,   
+  Trash2     
 } from 'lucide-react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsPDF } from "jspdf";
@@ -40,17 +40,33 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [isListening, setIsListening] = useState(false); // Added for Voice
-  const [history, setHistory] = useState([]); // Added for History
+  const [isListening, setIsListening] = useState(false);
+  const [history, setHistory] = useState([]); 
   const fileInputRef = useRef(null);
 
-  // --- NEW: Load History on Start ---
+  // --- UPDATED: Load History AND Shared Report ---
   useEffect(() => {
+    // 1. Load History
     const saved = localStorage.getItem('mediscan_history');
     if (saved) setHistory(JSON.parse(saved));
+
+    // 2. Check for Shared Link Data
+    const params = new URLSearchParams(window.location.search);
+    const sharedData = params.get('r'); // 'r' stands for report
+    
+    if (sharedData) {
+      try {
+        // Decode the Base64 string back into JSON
+        const decoded = JSON.parse(atob(sharedData));
+        setResult(decoded);
+        setInput("Shared Report View"); // Indicator that this is a shared view
+      } catch (err) {
+        console.error("Failed to load shared report", err);
+      }
+    }
   }, []);
 
-  // --- NEW: Save History Helper ---
+  // --- Helper: Save History ---
   const saveToHistory = (newResult, userInput) => {
     const newItem = {
       id: Date.now(),
@@ -74,7 +90,6 @@ export default function App() {
     setImageFile(null); setImagePreview(null);
   };
 
-  // --- NEW: Voice Input Logic ---
   const toggleVoice = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -92,20 +107,35 @@ export default function App() {
     }
   };
 
-  // --- NEW: Share Logic ---
+  // --- UPDATED: Smart Share Function ---
   const handleShare = async () => {
-    if (navigator.share && result) {
-      await navigator.share({
-        title: 'MediScan Report',
-        text: `Analysis: ${result.analysis}\nProbability: ${result.cureness_probability}`,
-        url: window.location.href
-      });
-    } else {
-      alert("Sharing not supported on this device.");
+    if (!result) return;
+
+    try {
+      // 1. Convert result to a compressed string (Base64)
+      const encodedData = btoa(JSON.stringify(result));
+      
+      // 2. Create the unique URL
+      const shareUrl = `${window.location.origin}?r=${encodedData}`;
+
+      if (navigator.share) {
+        // Mobile: Open native share menu
+        await navigator.share({
+          title: 'MediScan Report',
+          text: `Check out this AI health analysis: ${result.analysis}`,
+          url: shareUrl
+        });
+      } else {
+        // Desktop: Copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Report Link Copied to Clipboard!");
+      }
+    } catch (err) {
+      console.error("Share failed:", err);
     }
   };
 
-  // --- Handlers ---
+  // --- Existing Handlers ---
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -134,50 +164,33 @@ export default function App() {
     if (!result) return;
     
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
-    const maxLineWidth = pageWidth - (margin * 2);
     let yPos = 20;
 
-    // Header
     doc.setFontSize(22);
-    doc.setTextColor(13, 148, 136); // Teal color
+    doc.setTextColor(13, 148, 136); 
     doc.text("MediScan AI Report", margin, yPos);
     yPos += 10;
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, yPos);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, yPos);
     yPos += 15;
 
-    // Divider
     doc.setDrawColor(200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
+    doc.line(margin, yPos, 190, yPos);
     yPos += 15;
 
-    // User Input
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text("Symptoms Reported:", margin, yPos);
-    yPos += 7;
-    doc.setFontSize(11);
-    doc.setTextColor(80);
-    const splitInput = doc.splitTextToSize(input || "Image Analysis", maxLineWidth);
-    doc.text(splitInput, margin, yPos);
-    yPos += (splitInput.length * 7) + 10;
-
-    // AI Analysis
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("AI Analysis Summary:", margin, yPos);
     yPos += 7;
     doc.setFontSize(11);
     doc.setTextColor(80);
-    const splitAnalysis = doc.splitTextToSize(result.analysis, maxLineWidth);
+    const splitAnalysis = doc.splitTextToSize(result.analysis, 170);
     doc.text(splitAnalysis, margin, yPos);
     yPos += (splitAnalysis.length * 7) + 10;
 
-    // Potential Conditions
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("Potential Conditions:", margin, yPos);
@@ -191,37 +204,15 @@ export default function App() {
         
         doc.setFontSize(10);
         doc.setTextColor(100);
-        const splitReason = doc.splitTextToSize(cond.reason, maxLineWidth - 10);
+        const splitReason = doc.splitTextToSize(cond.reason, 160);
         doc.text(splitReason, margin + 10, yPos);
         yPos += (splitReason.length * 5) + 8;
     });
 
-    // Recommendations
-    yPos += 5;
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text("Recommendations:", margin, yPos);
-    yPos += 10;
-
-    doc.setFontSize(11);
-    doc.setTextColor(80);
-    doc.text(`Specialist: ${result.specialist}`, margin + 5, yPos);
-    yPos += 10;
-
-    doc.text("Immediate Actions:", margin + 5, yPos);
-    yPos += 7;
-    result.immediate_action.forEach(action => {
-        doc.text(`- ${action}`, margin + 10, yPos);
-        yPos += 6;
-    });
-
-    // Disclaimer Footer
-    yPos = 280; // Bottom of page
+    yPos = 280; 
     doc.setFontSize(8);
-    doc.setTextColor(200, 0, 0); // Red
-    const disclaimer = "DISCLAIMER: This report is generated by an AI model and is NOT a medical diagnosis. Always consult a professional doctor.";
-    const splitDisclaimer = doc.splitTextToSize(disclaimer, maxLineWidth);
-    doc.text(splitDisclaimer, margin, yPos);
+    doc.setTextColor(200, 0, 0); 
+    doc.text("DISCLAIMER: AI Prototype. Not a medical diagnosis.", margin, yPos);
 
     doc.save("mediscan_report.pdf");
   };
@@ -235,24 +226,21 @@ export default function App() {
     try {
       if (!apiKey) throw new Error("API Key is missing.");
 
-      // KEEPING YOUR REQUESTED MODEL
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       
       const prompt = `
       Act as a medical AI assistant. Analyze these symptoms: "${input}".
-      Return a strictly valid JSON object (no markdown formatting, just raw JSON) with this structure:
+      Return a strictly valid JSON object (no markdown) with:
       {
-        "analysis": "A short 1-sentence summary of what might be happening.",
+        "analysis": "A short 1-sentence summary.",
         "potential_conditions": [
-          { "name": "Disease Name", "probability": "Percentage (e.g. 80%)", "reason": "Why this fits" },
-          { "name": "Disease Name", "probability": "Percentage", "reason": "Why this fits" },
           { "name": "Disease Name", "probability": "Percentage", "reason": "Why this fits" }
         ],
-        "cureness_probability": "Estimate likelihood of cure/recovery (e.g. 'High (95%)', 'Moderate', 'Chronic but manageable')",
-        "cureness_color": "green/yellow/red (choose one based on severity)",
-        "specialist": "Type of doctor to consult (e.g. Dermatologist, General Physician)",
+        "cureness_probability": "Likelihood of cure",
+        "cureness_color": "green/yellow/red",
+        "specialist": "Doctor type",
         "immediate_action": ["Action 1", "Action 2"],
-        "disclaimer": "Standard medical disclaimer text."
+        "disclaimer": "Standard medical disclaimer."
       }
       `;
       
@@ -264,7 +252,7 @@ export default function App() {
       const data = JSON.parse(cleanText);
       
       setResult(data);
-      saveToHistory(data, input); // Added History Save
+      saveToHistory(data, input);
 
     } catch (err) {
       console.error(err);
@@ -289,20 +277,19 @@ export default function App() {
         reader.readAsDataURL(imageFile);
       });
 
-      // KEEPING YOUR REQUESTED MODEL
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
       Analyze this medical image. 
-      Return a strictly valid JSON object (no markdown formatting) with:
+      Return a strictly valid JSON object (no markdown) with:
       {
-        "analysis": "Description of visual findings.",
+        "analysis": "Visual findings.",
         "potential_conditions": [
-          { "name": "Condition Name", "probability": "Estimated %", "reason": "Visual evidence" }
+          { "name": "Condition", "probability": "%", "reason": "Evidence" }
         ],
-        "cureness_probability": "Likelihood of cure (e.g. 'High', 'Moderate')",
+        "cureness_probability": "Cure Likelihood",
         "cureness_color": "green/yellow/red",
-        "specialist": "Recommended specialist",
-        "immediate_action": ["Suggestion 1", "Suggestion 2"],
+        "specialist": "Specialist",
+        "immediate_action": ["Action 1"],
         "disclaimer": "Disclaimer text."
       }`;
       
@@ -320,7 +307,7 @@ export default function App() {
       const data = JSON.parse(cleanText);
 
       setResult(data);
-      saveToHistory(data, "Image Analysis"); // Added History Save
+      saveToHistory(data, "Image Analysis");
 
     } catch (err) {
       console.error(err);
@@ -388,7 +375,7 @@ export default function App() {
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                     />
-                    {/* NEW: Voice Button */}
+                    {/* Voice Button */}
                     <button 
                       onClick={toggleVoice}
                       className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${isListening ? 'bg-rose-500 text-white shadow-lg' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
@@ -397,7 +384,6 @@ export default function App() {
                     </button>
                   </div>
                   
-                  {/* Quick Chips */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {COMMON_SYMPTOMS.map(s => (
                       <button 
@@ -461,7 +447,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* NEW: History Section */}
+          {/* NEW: History List */}
           {history.length > 0 && (
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm animate-in slide-in-from-bottom-2">
               <div className="flex justify-between items-center mb-4">
@@ -513,7 +499,7 @@ export default function App() {
                         <p className="text-slate-300 text-sm leading-relaxed">{result.analysis}</p>
                     </div>
                 </div>
-                {/* NEW: PDF & Share Buttons */}
+                {/* PDF & Share Buttons */}
                 <div className="flex gap-2">
                   <button 
                     onClick={downloadPDF}
