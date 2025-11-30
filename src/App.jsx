@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Stethoscope, 
   Upload, 
@@ -14,7 +14,11 @@ import {
   Plus,
   ChevronRight,
   HeartPulse,
-  FileDown
+  FileDown,
+  Mic,       // Added
+  Share2,    // Added
+  History,   // Added
+  Trash2     // Added
 } from 'lucide-react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsPDF } from "jspdf";
@@ -36,7 +40,70 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [isListening, setIsListening] = useState(false); // Added for Voice
+  const [history, setHistory] = useState([]); // Added for History
   const fileInputRef = useRef(null);
+
+  // --- NEW: Load History on Start ---
+  useEffect(() => {
+    const saved = localStorage.getItem('mediscan_history');
+    if (saved) setHistory(JSON.parse(saved));
+  }, []);
+
+  // --- NEW: Save History Helper ---
+  const saveToHistory = (newResult, userInput) => {
+    const newItem = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString(),
+      input: userInput,
+      result: newResult
+    };
+    const updated = [newItem, ...history].slice(0, 3);
+    setHistory(updated);
+    localStorage.setItem('mediscan_history', JSON.stringify(updated));
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('mediscan_history');
+  };
+
+  const loadHistoryItem = (item) => {
+    setInput(item.input);
+    setResult(item.result);
+    setImageFile(null); setImagePreview(null);
+  };
+
+  // --- NEW: Voice Input Logic ---
+  const toggleVoice = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        setInput(prev => prev ? `${prev} ${text}` : text);
+      };
+      recognition.start();
+    } else {
+      alert("Voice input not supported in this browser.");
+    }
+  };
+
+  // --- NEW: Share Logic ---
+  const handleShare = async () => {
+    if (navigator.share && result) {
+      await navigator.share({
+        title: 'MediScan Report',
+        text: `Analysis: ${result.analysis}\nProbability: ${result.cureness_probability}`,
+        url: window.location.href
+      });
+    } else {
+      alert("Sharing not supported on this device.");
+    }
+  };
 
   // --- Handlers ---
 
@@ -168,6 +235,7 @@ export default function App() {
     try {
       if (!apiKey) throw new Error("API Key is missing.");
 
+      // KEEPING YOUR REQUESTED MODEL
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       
       const prompt = `
@@ -196,6 +264,8 @@ export default function App() {
       const data = JSON.parse(cleanText);
       
       setResult(data);
+      saveToHistory(data, input); // Added History Save
+
     } catch (err) {
       console.error(err);
       setError("Could not analyze symptoms. Please try again.");
@@ -219,6 +289,7 @@ export default function App() {
         reader.readAsDataURL(imageFile);
       });
 
+      // KEEPING YOUR REQUESTED MODEL
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
       Analyze this medical image. 
@@ -249,6 +320,8 @@ export default function App() {
       const data = JSON.parse(cleanText);
 
       setResult(data);
+      saveToHistory(data, "Image Analysis"); // Added History Save
+
     } catch (err) {
       console.error(err);
       setError("Error analyzing image. Ensure the image is clear.");
@@ -303,13 +376,26 @@ export default function App() {
             <div className="p-6">
               {activeTab === 'symptoms' ? (
                 <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Describe Symptoms</label>
-                  <textarea 
-                    className="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all resize-none placeholder:text-slate-400 text-slate-700 font-medium"
-                    placeholder="e.g. High fever, shivering, and headache..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                  />
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Describe Symptoms</label>
+                    {isListening && <span className="text-xs font-bold text-rose-500 animate-pulse flex items-center gap-1">● Listening...</span>}
+                  </div>
+                  
+                  <div className="relative">
+                    <textarea 
+                      className="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all resize-none placeholder:text-slate-400 text-slate-700 font-medium pr-12"
+                      placeholder="e.g. High fever, shivering, and headache..."
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                    />
+                    {/* NEW: Voice Button */}
+                    <button 
+                      onClick={toggleVoice}
+                      className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${isListening ? 'bg-rose-500 text-white shadow-lg' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                  </div>
                   
                   {/* Quick Chips */}
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -374,6 +460,27 @@ export default function App() {
               )}
             </div>
           </div>
+
+          {/* NEW: History Section */}
+          {history.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm animate-in slide-in-from-bottom-2">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2"><History className="w-4 h-4"/> Recent Scans</h3>
+                <button onClick={clearHistory} className="text-xs text-rose-500 flex items-center gap-1 hover:underline"><Trash2 className="w-3 h-3"/> Clear</button>
+              </div>
+              <div className="space-y-2">
+                {history.map(item => (
+                  <div key={item.id} onClick={() => loadHistoryItem(item)} className="p-3 bg-slate-50 hover:bg-teal-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-teal-100 group">
+                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                      <span>{item.date}</span>
+                      <span className={`font-bold ${item.result.cureness_color === 'green' ? 'text-teal-600' : 'text-rose-500'}`}>{item.result.cureness_probability}</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 truncate">{item.input}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
           {error && (
             <div className="p-4 bg-rose-100 border border-rose-200 rounded-2xl text-rose-700 flex items-center gap-3 animate-in slide-in-from-bottom-2">
@@ -406,13 +513,21 @@ export default function App() {
                         <p className="text-slate-300 text-sm leading-relaxed">{result.analysis}</p>
                     </div>
                 </div>
-                {/* PDF Download Button */}
-                <button 
-                  onClick={downloadPDF}
-                  className="w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <FileDown className="w-4 h-4" /> Download Medical Report
-                </button>
+                {/* NEW: PDF & Share Buttons */}
+                <div className="flex gap-2">
+                  <button 
+                    onClick={downloadPDF}
+                    className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <FileDown className="w-4 h-4" /> Report
+                  </button>
+                  <button 
+                    onClick={handleShare}
+                    className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                </div>
               </div>
 
               {/* Cure Probability Card */}
