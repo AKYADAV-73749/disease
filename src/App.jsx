@@ -44,29 +44,25 @@ export default function App() {
   const [history, setHistory] = useState([]); 
   const fileInputRef = useRef(null);
 
-  // --- UPDATED: Load History AND Shared Report ---
+  // --- Load History AND Shared Report ---
   useEffect(() => {
-    // 1. Load History
     const saved = localStorage.getItem('mediscan_history');
     if (saved) setHistory(JSON.parse(saved));
 
-    // 2. Check for Shared Link Data
     const params = new URLSearchParams(window.location.search);
-    const sharedData = params.get('r'); // 'r' stands for report
+    const sharedData = params.get('r'); 
     
     if (sharedData) {
       try {
-        // Decode the Base64 string back into JSON
         const decoded = JSON.parse(atob(sharedData));
         setResult(decoded);
-        setInput("Shared Report View"); // Indicator that this is a shared view
+        setInput("Shared Report View");
       } catch (err) {
         console.error("Failed to load shared report", err);
       }
     }
   }, []);
 
-  // --- Helper: Save History ---
   const saveToHistory = (newResult, userInput) => {
     const newItem = {
       id: Date.now(),
@@ -90,11 +86,18 @@ export default function App() {
     setImageFile(null); setImagePreview(null);
   };
 
+  // --- UPDATED: Voice Input (Supports Hindi & English) ---
   const toggleVoice = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
+      
+      // Allow capturing both Hindi and English
+      // Note: Browsers usually stick to one, but 'hi-IN' often captures Hinglish well.
+      recognition.lang = 'hi-IN'; // Changed to Hindi India
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
       recognition.onstart = () => setIsListening(true);
       recognition.onend = () => setIsListening(false);
       recognition.onresult = (e) => {
@@ -107,26 +110,20 @@ export default function App() {
     }
   };
 
-  // --- UPDATED: Smart Share Function ---
   const handleShare = async () => {
     if (!result) return;
 
     try {
-      // 1. Convert result to a compressed string (Base64)
       const encodedData = btoa(JSON.stringify(result));
-      
-      // 2. Create the unique URL
       const shareUrl = `${window.location.origin}?r=${encodedData}`;
 
       if (navigator.share) {
-        // Mobile: Open native share menu
         await navigator.share({
           title: 'MediScan Report',
           text: `Check out this AI health analysis: ${result.analysis}`,
           url: shareUrl
         });
       } else {
-        // Desktop: Copy to clipboard
         await navigator.clipboard.writeText(shareUrl);
         alert("Report Link Copied to Clipboard!");
       }
@@ -134,8 +131,6 @@ export default function App() {
       console.error("Share failed:", err);
     }
   };
-
-  // --- Existing Handlers ---
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -228,11 +223,16 @@ export default function App() {
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       
+      // UPDATED PROMPT: Added instruction to translate Hindi inputs
       const prompt = `
       Act as a medical AI assistant. Analyze these symptoms: "${input}".
+      
+      IMPORTANT: If the symptoms are provided in Hindi (or Hinglish), first translate them to English internally, then analyze them.
+      The output must ALWAYS be in English.
+
       Return a strictly valid JSON object (no markdown) with:
       {
-        "analysis": "A short 1-sentence summary.",
+        "analysis": "A short 1-sentence summary of what might be happening (in English).",
         "potential_conditions": [
           { "name": "Disease Name", "probability": "Percentage", "reason": "Why this fits" }
         ],
@@ -364,14 +364,14 @@ export default function App() {
               {activeTab === 'symptoms' ? (
                 <div className="animate-in fade-in slide-in-from-left-4 duration-300">
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Describe Symptoms</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Describe Symptoms (Speak in Hindi or English)</label>
                     {isListening && <span className="text-xs font-bold text-rose-500 animate-pulse flex items-center gap-1">● Listening...</span>}
                   </div>
                   
                   <div className="relative">
                     <textarea 
                       className="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all resize-none placeholder:text-slate-400 text-slate-700 font-medium pr-12"
-                      placeholder="e.g. High fever, shivering, and headache..."
+                      placeholder="e.g. High fever, shivering... (or speak 'Mujhe bukhar hai')"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                     />
@@ -384,6 +384,7 @@ export default function App() {
                     </button>
                   </div>
                   
+                  {/* Quick Chips */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {COMMON_SYMPTOMS.map(s => (
                       <button 
@@ -499,7 +500,7 @@ export default function App() {
                         <p className="text-slate-300 text-sm leading-relaxed">{result.analysis}</p>
                     </div>
                 </div>
-                {/* PDF & Share Buttons */}
+                {/* NEW: PDF & Share Buttons */}
                 <div className="flex gap-2">
                   <button 
                     onClick={downloadPDF}
