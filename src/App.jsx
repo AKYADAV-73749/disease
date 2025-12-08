@@ -20,6 +20,8 @@ import {
   History,   
   Trash2     
 } from 'lucide-react';
+import { LogOut, User as UserIcon, Lock, Mail, ArrowRight, CheckCircle2 } from 'lucide-react'; 
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsPDF } from "jspdf";
 
@@ -32,7 +34,202 @@ const COMMON_SYMPTOMS = [
   "Stomach Pain", "Nausea", "Dizziness", "Sore Throat", "Joint Pain"
 ];
 
+// --- Login Screen (Updated to pass email to parent) ---
+const LoginScreen = ({ onLogin }) => {
+  const [isLogin, setIsLogin] = useState(true); 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showTerms, setShowTerms] = useState(false);
+
+  const handleTermsClick = () => {
+    setShowTerms(true);
+  };
+
+  const handleAuth = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    setTimeout(() => {
+      const storedUsers = JSON.parse(localStorage.getItem('mediscan_users') || '[]');
+      
+      if (isLogin) {
+        // --- SIGN IN ---
+        const user = storedUsers.find(u => u.email === email);
+        
+        if (!user) {
+          setError("Account not found. Please Sign Up first.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (user.password !== password) {
+          setError("Incorrect password.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Success: Pass email to onLogin
+        onLogin(email);
+
+      } else {
+        // --- SIGN UP ---
+        const existingUser = storedUsers.find(u => u.email === email);
+        
+        if (existingUser) {
+          setError("Account already exists. Please Sign In.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters.");
+            setIsLoading(false);
+            return;
+        }
+
+        const newUser = { email, password };
+        localStorage.setItem('mediscan_users', JSON.stringify([...storedUsers, newUser]));
+        
+        // Success: Pass email to onLogin
+        onLogin(email);
+      }
+      
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative">
+      
+      {showTerms && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                <h3 className="text-xl font-bold text-slate-800 mb-4">Terms & Conditions</h3>
+                <div className="h-48 overflow-y-auto text-sm text-slate-600 space-y-3 mb-6 pr-2">
+                    <p>1. <strong>Not a Medical Device:</strong> MediScan AI is a prototype for informational purposes only.</p>
+                    <p>2. <strong>Data Privacy:</strong> Your data is stored locally on this device.</p>
+                    <p>3. <strong>Accuracy:</strong> AI analysis may be incorrect. Always consult a real doctor.</p>
+                </div>
+                <button 
+                    onClick={() => setShowTerms(false)}
+                    className="w-full py-3 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 transition-colors"
+                >
+                    I Understand
+                </button>
+            </div>
+        </div>
+      )}
+
+      <div className="bg-white max-w-md w-full rounded-3xl shadow-xl border border-slate-100 overflow-hidden z-10">
+        <div className="bg-teal-600 p-8 text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/medical-icons.png')] opacity-10"></div>
+          <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-lg">
+            <Stethoscope className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-1">Welcome to MediScan</h2>
+          <p className="text-teal-100 text-sm">AI-Powered Health Assistant</p>
+        </div>
+
+        <div className="p-8">
+          <div className="flex gap-4 mb-6 bg-slate-100 p-1 rounded-xl">
+            <button 
+              onClick={() => {setIsLogin(true); setError('');}}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${isLogin ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-400'}`}
+            >
+              Sign In
+            </button>
+            <button 
+              onClick={() => {setIsLogin(false); setError('');}}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!isLogin ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-400'}`}
+            >
+              Sign Up
+            </button>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-lg flex items-start gap-2 text-rose-600 text-xs font-bold animate-in slide-in-from-top-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                {error}
+            </div>
+          )}
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-medium text-slate-700"
+                  placeholder="name@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-medium text-slate-700"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-lg shadow-teal-200 transition-all flex items-center justify-center gap-2 mt-6 active:scale-[0.98]"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isLogin ? 'Verifying...' : 'Creating Account...'}
+                </>
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs text-slate-400">
+              By continuing, you agree to our 
+              <button 
+                type="button" 
+                onClick={handleTermsClick}
+                className="ml-1 text-teal-600 font-bold cursor-pointer hover:underline outline-none"
+              >
+                Terms of Service
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ------------------------------------
+
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // NEW: Store current user's email
+  const [currentUser, setCurrentUser] = useState(null);
+  
   const [activeTab, setActiveTab] = useState('symptoms'); 
   const [input, setInput] = useState('');
   const [imageFile, setImageFile] = useState(null);
@@ -44,14 +241,22 @@ export default function App() {
   const [history, setHistory] = useState([]); 
   const fileInputRef = useRef(null);
 
-  // --- Load History AND Shared Report ---
+  // --- UPDATED: Load History (Specific to User) ---
   useEffect(() => {
-    const saved = localStorage.getItem('mediscan_history');
-    if (saved) setHistory(JSON.parse(saved));
+    if (!currentUser) {
+        setHistory([]); // Clear history if no user
+        return; 
+    }
 
+    // Load user-specific history key
+    const historyKey = `mediscan_history_${currentUser}`;
+    const saved = localStorage.getItem(historyKey);
+    if (saved) setHistory(JSON.parse(saved));
+    else setHistory([]); // Ensure fresh state if no history exists for this user
+
+    // Shared report logic remains same
     const params = new URLSearchParams(window.location.search);
     const sharedData = params.get('r'); 
-    
     if (sharedData) {
       try {
         const decoded = JSON.parse(atob(sharedData));
@@ -61,23 +266,34 @@ export default function App() {
         console.error("Failed to load shared report", err);
       }
     }
-  }, []);
+  }, [currentUser]); // Run this whenever currentUser changes
 
+  // --- UPDATED: Save History (Specific to User) ---
   const saveToHistory = (newResult, userInput) => {
+    if (!currentUser) return; // Don't save if not logged in
+
     const newItem = {
       id: Date.now(),
       date: new Date().toLocaleDateString(),
       input: userInput,
       result: newResult
     };
+    
+    // Using functional update to ensure we have latest state
     const updated = [newItem, ...history].slice(0, 3);
     setHistory(updated);
-    localStorage.setItem('mediscan_history', JSON.stringify(updated));
+    
+    // Save to user-specific key
+    const historyKey = `mediscan_history_${currentUser}`;
+    localStorage.setItem(historyKey, JSON.stringify(updated));
   };
 
+  // --- UPDATED: Clear History (Specific to User) ---
   const clearHistory = () => {
+    if (!currentUser) return;
     setHistory([]);
-    localStorage.removeItem('mediscan_history');
+    const historyKey = `mediscan_history_${currentUser}`;
+    localStorage.removeItem(historyKey);
   };
 
   const loadHistoryItem = (item) => {
@@ -86,15 +302,12 @@ export default function App() {
     setImageFile(null); setImagePreview(null);
   };
 
-  // --- UPDATED: Voice Input (Supports Hindi & English) ---
   const toggleVoice = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       
-      // Allow capturing both Hindi and English
-      // Note: Browsers usually stick to one, but 'hi-IN' often captures Hinglish well.
-      recognition.lang = 'hi-IN'; // Changed to Hindi India
+      recognition.lang = 'hi-IN'; 
       recognition.continuous = false;
       recognition.interimResults = false;
 
@@ -112,11 +325,9 @@ export default function App() {
 
   const handleShare = async () => {
     if (!result) return;
-
     try {
       const encodedData = btoa(JSON.stringify(result));
       const shareUrl = `${window.location.origin}?r=${encodedData}`;
-
       if (navigator.share) {
         await navigator.share({
           title: 'MediScan Report',
@@ -157,25 +368,20 @@ export default function App() {
 
   const downloadPDF = () => {
     if (!result) return;
-    
     const doc = new jsPDF();
     const margin = 20;
     let yPos = 20;
-
     doc.setFontSize(22);
     doc.setTextColor(13, 148, 136); 
     doc.text("MediScan AI Report", margin, yPos);
     yPos += 10;
-    
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, yPos);
     yPos += 15;
-
     doc.setDrawColor(200);
     doc.line(margin, yPos, 190, yPos);
     yPos += 15;
-
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("AI Analysis Summary:", margin, yPos);
@@ -185,30 +391,25 @@ export default function App() {
     const splitAnalysis = doc.splitTextToSize(result.analysis, 170);
     doc.text(splitAnalysis, margin, yPos);
     yPos += (splitAnalysis.length * 7) + 10;
-
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("Potential Conditions:", margin, yPos);
     yPos += 10;
-
     result.potential_conditions.forEach((cond) => {
         doc.setFontSize(12);
         doc.setTextColor(0);
         doc.text(`• ${cond.name} (${cond.probability})`, margin + 5, yPos);
         yPos += 6;
-        
         doc.setFontSize(10);
         doc.setTextColor(100);
         const splitReason = doc.splitTextToSize(cond.reason, 160);
         doc.text(splitReason, margin + 10, yPos);
         yPos += (splitReason.length * 5) + 8;
     });
-
     yPos = 280; 
     doc.setFontSize(8);
     doc.setTextColor(200, 0, 0); 
     doc.text("DISCLAIMER: AI Prototype. Not a medical diagnosis.", margin, yPos);
-
     doc.save("mediscan_report.pdf");
   };
 
@@ -217,19 +418,13 @@ export default function App() {
     setLoading(true);
     setResult(null);
     setError(null);
-    
     try {
       if (!apiKey) throw new Error("API Key is missing.");
-
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      
-      // UPDATED PROMPT: Added instruction to translate Hindi inputs
       const prompt = `
       Act as a medical AI assistant. Analyze these symptoms: "${input}".
-      
       IMPORTANT: If the symptoms are provided in Hindi (or Hinglish), first translate them to English internally, then analyze them.
       The output must ALWAYS be in English.
-
       Return a strictly valid JSON object (no markdown) with:
       {
         "analysis": "A short 1-sentence summary of what might be happening (in English).",
@@ -243,17 +438,13 @@ export default function App() {
         "disclaimer": "Standard medical disclaimer."
       }
       `;
-      
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
       const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const data = JSON.parse(cleanText);
-      
       setResult(data);
       saveToHistory(data, input);
-
     } catch (err) {
       console.error(err);
       setError("Could not analyze symptoms. Please try again.");
@@ -266,17 +457,14 @@ export default function App() {
     setLoading(true);
     setResult(null);
     setError(null);
-    
     try {
       if (!apiKey) throw new Error("API Key is missing.");
-
       const base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result.split(',')[1]);
         reader.onerror = reject;
         reader.readAsDataURL(imageFile);
       });
-
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `
       Analyze this medical image. 
@@ -292,29 +480,45 @@ export default function App() {
         "immediate_action": ["Action 1"],
         "disclaimer": "Disclaimer text."
       }`;
-      
       const imagePart = {
         inlineData: {
           data: base64Data,
           mimeType: imageFile.type,
         },
       };
-
       const result = await model.generateContent([prompt, imagePart]);
       const response = await result.response;
       const text = response.text();
       const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const data = JSON.parse(cleanText);
-
       setResult(data);
       saveToHistory(data, "Image Analysis");
-
     } catch (err) {
       console.error(err);
       setError("Error analyzing image. Ensure the image is clear.");
     }
     setLoading(false);
   };
+
+  // --- UPDATED: Handler for Login to set User ---
+  const handleLogin = (userEmail) => {
+    setCurrentUser(userEmail);
+    setIsAuthenticated(true);
+  };
+
+  // --- UPDATED: Handler for Logout ---
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setHistory([]);
+    setResult(null);
+    setInput('');
+  };
+
+  if (!isAuthenticated) {
+    // Pass handleLogin (which accepts email) instead of simple bool setter
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
@@ -332,6 +536,19 @@ export default function App() {
             <ShieldAlert className="w-4 h-4" />
             AI Prototype • Not a Doctor
           </div>
+          {/* Logout Button */}
+          <button 
+            onClick={handleLogout}
+            className="md:hidden ml-auto p-2 text-slate-400 hover:text-rose-500 transition-colors"
+          >
+             <LogOut className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="hidden md:flex items-center gap-2 ml-4 text-xs font-bold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-lg"
+          >
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
         </div>
       </header>
 
@@ -342,6 +559,8 @@ export default function App() {
           <div className="text-left">
             <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Health Check</h2>
             <p className="text-slate-500">AI-powered assessment for symptoms and visual conditions.</p>
+            {/* Display Current User Email */}
+            <p className="text-xs font-bold text-teal-600 mt-1">Logged in as: {currentUser}</p>
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
@@ -500,7 +719,7 @@ export default function App() {
                         <p className="text-slate-300 text-sm leading-relaxed">{result.analysis}</p>
                     </div>
                 </div>
-                {/* NEW: PDF & Share Buttons */}
+                {/* PDF & Share Buttons */}
                 <div className="flex gap-2">
                   <button 
                     onClick={downloadPDF}
