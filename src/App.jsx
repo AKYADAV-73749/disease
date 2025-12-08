@@ -25,17 +25,54 @@ import { LogOut, User as UserIcon, Lock, Mail, ArrowRight, CheckCircle2 } from '
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsPDF } from "jspdf";
 
+// --- NEW: Firebase Imports ---
+import { initializeApp } from "firebase/app";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged 
+} from "firebase/auth";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy, 
+  serverTimestamp, 
+  deleteDoc,
+  doc 
+} from "firebase/firestore";
+
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
 
 const genAI = new GoogleGenerativeAI(apiKey);
+
+// --- FIREBASE CONFIGURATION (Loads from your .env file) ---
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+   authDomain: "gen-lang-client-0225232589.firebaseapp.com",
+  projectId: "gen-lang-client-0225232589",
+  storageBucket: "gen-lang-client-0225232589.firebasestorage.app",
+  messagingSenderId: "13472895162",
+  appId: "1:13472895162:web:f0fdb3c1c1c88e32aa7283",
+  measurementId: "G-SJN7ERLNZS"
+};
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 const COMMON_SYMPTOMS = [
   "Headache", "Fever", "Cough", "Fatigue", "Skin Rash", 
   "Stomach Pain", "Nausea", "Dizziness", "Sore Throat", "Joint Pain"
 ];
 
-// --- Login Screen (Updated to pass email to parent) ---
-const LoginScreen = ({ onLogin }) => {
+// --- Login Screen (Updated for Firebase) ---
+const LoginScreen = () => {
   const [isLogin, setIsLogin] = useState(true); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,58 +84,30 @@ const LoginScreen = ({ onLogin }) => {
     setShowTerms(true);
   };
 
-  const handleAuth = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    setTimeout(() => {
-      const storedUsers = JSON.parse(localStorage.getItem('mediscan_users') || '[]');
-      
+    try {
       if (isLogin) {
-        // --- SIGN IN ---
-        const user = storedUsers.find(u => u.email === email);
-        
-        if (!user) {
-          setError("Account not found. Please Sign Up first.");
-          setIsLoading(false);
-          return;
-        }
-
-        if (user.password !== password) {
-          setError("Incorrect password.");
-          setIsLoading(false);
-          return;
-        }
-
-        // Success: Pass email to onLogin
-        onLogin(email);
-
+        // --- FIREBASE SIGN IN ---
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
-        // --- SIGN UP ---
-        const existingUser = storedUsers.find(u => u.email === email);
-        
-        if (existingUser) {
-          setError("Account already exists. Please Sign In.");
-          setIsLoading(false);
-          return;
-        }
-
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters.");
-            setIsLoading(false);
-            return;
-        }
-
-        const newUser = { email, password };
-        localStorage.setItem('mediscan_users', JSON.stringify([...storedUsers, newUser]));
-        
-        // Success: Pass email to onLogin
-        onLogin(email);
+        // --- FIREBASE SIGN UP ---
+        await createUserWithEmailAndPassword(auth, email, password);
       }
-      
+      // Note: No need to manually call onLogin(); App component listens for the change automatically.
+    } catch (err) {
+      console.error(err);
+      let msg = "Authentication failed.";
+      // Map Firebase error codes to readable messages
+      if (err.code === 'auth/invalid-credential') msg = "Invalid email or password.";
+      if (err.code === 'auth/email-already-in-use') msg = "Email already in use.";
+      if (err.code === 'auth/weak-password') msg = "Password should be at least 6 characters.";
+      setError(msg);
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -110,7 +119,7 @@ const LoginScreen = ({ onLogin }) => {
                 <h3 className="text-xl font-bold text-slate-800 mb-4">Terms & Conditions</h3>
                 <div className="h-48 overflow-y-auto text-sm text-slate-600 space-y-3 mb-6 pr-2">
                     <p>1. <strong>Not a Medical Device:</strong> MediScan AI is a prototype for informational purposes only.</p>
-                    <p>2. <strong>Data Privacy:</strong> Your data is stored locally on this device.</p>
+                    <p>2. <strong>Data Privacy:</strong> Your data is stored securely in the cloud.</p>
                     <p>3. <strong>Accuracy:</strong> AI analysis may be incorrect. Always consult a real doctor.</p>
                 </div>
                 <button 
@@ -226,9 +235,8 @@ const LoginScreen = ({ onLogin }) => {
 // ------------------------------------
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // NEW: Store current user's email
-  const [currentUser, setCurrentUser] = useState(null);
+  const [user, setUser] = useState(null); // Tracks logged-in user
+  const [authLoading, setAuthLoading] = useState(true); // Tracks if Firebase is checking login status
   
   const [activeTab, setActiveTab] = useState('symptoms'); 
   const [input, setInput] = useState('');
@@ -241,59 +249,70 @@ export default function App() {
   const [history, setHistory] = useState([]); 
   const fileInputRef = useRef(null);
 
-  // --- UPDATED: Load History (Specific to User) ---
+  // --- 1. CHECK LOGIN STATUS (Firebase) ---
   useEffect(() => {
-    if (!currentUser) {
-        setHistory([]); // Clear history if no user
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- 2. LOAD HISTORY FROM CLOUD DATABASE (Firebase) ---
+  useEffect(() => {
+    if (!user) {
+        setHistory([]); 
         return; 
     }
 
-    // Load user-specific history key
-    const historyKey = `mediscan_history_${currentUser}`;
-    const saved = localStorage.getItem(historyKey);
-    if (saved) setHistory(JSON.parse(saved));
-    else setHistory([]); // Ensure fresh state if no history exists for this user
+    // Connect to "scans" collection, filter by my User ID, sort by date
+    const q = query(
+      collection(db, "scans"), 
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
 
-    // Shared report logic remains same
-    const params = new URLSearchParams(window.location.search);
-    const sharedData = params.get('r'); 
-    if (sharedData) {
-      try {
-        const decoded = JSON.parse(atob(sharedData));
-        setResult(decoded);
-        setInput("Shared Report View");
-      } catch (err) {
-        console.error("Failed to load shared report", err);
-      }
+    // Real-time Listener (Update automatically)
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Convert Firebase Timestamp to readable date
+        date: doc.data().createdAt ? doc.data().createdAt.toDate().toLocaleDateString() : "Just now" 
+      }));
+      setHistory(docs);
+    });
+
+    return () => unsubscribe();
+  }, [user]); 
+
+  // --- 3. SAVE HISTORY TO CLOUD (Firebase) ---
+  const saveToHistory = async (newResult, userInput) => {
+    if (!user) return; 
+
+    try {
+      await addDoc(collection(db, "scans"), {
+        userId: user.uid,
+        userEmail: user.email,
+        input: userInput,
+        result: newResult,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Error saving to cloud:", err);
     }
-  }, [currentUser]); // Run this whenever currentUser changes
-
-  // --- UPDATED: Save History (Specific to User) ---
-  const saveToHistory = (newResult, userInput) => {
-    if (!currentUser) return; // Don't save if not logged in
-
-    const newItem = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString(),
-      input: userInput,
-      result: newResult
-    };
-    
-    // Using functional update to ensure we have latest state
-    const updated = [newItem, ...history].slice(0, 3);
-    setHistory(updated);
-    
-    // Save to user-specific key
-    const historyKey = `mediscan_history_${currentUser}`;
-    localStorage.setItem(historyKey, JSON.stringify(updated));
   };
 
-  // --- UPDATED: Clear History (Specific to User) ---
-  const clearHistory = () => {
-    if (!currentUser) return;
-    setHistory([]);
-    const historyKey = `mediscan_history_${currentUser}`;
-    localStorage.removeItem(historyKey);
+  // --- 4. CLEAR HISTORY (Firebase) ---
+  const clearHistory = async () => {
+    if (!user) return;
+    
+    if (confirm("Delete all history from cloud?")) {
+        // Simple client-side delete loop (for prototype)
+        history.forEach(async (item) => {
+            await deleteDoc(doc(db, "scans", item.id));
+        });
+    }
   };
 
   const loadHistoryItem = (item) => {
@@ -500,24 +519,27 @@ export default function App() {
     setLoading(false);
   };
 
-  // --- UPDATED: Handler for Login to set User ---
-  const handleLogin = (userEmail) => {
-    setCurrentUser(userEmail);
-    setIsAuthenticated(true);
-  };
-
-  // --- UPDATED: Handler for Logout ---
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setIsAuthenticated(false);
+  // --- UPDATED: Handler for Logout (Firebase) ---
+  const handleLogout = async () => {
+    await signOut(auth); // Firebase Sign Out
     setHistory([]);
     setResult(null);
     setInput('');
   };
 
-  if (!isAuthenticated) {
-    // Pass handleLogin (which accepts email) instead of simple bool setter
-    return <LoginScreen onLogin={handleLogin} />;
+  // --- Render ---
+  // Show a loading spinner while Firebase checks if you are logged in
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    // We don't need onLogin anymore because App listens to 'user' state directly
+    return <LoginScreen />;
   }
 
   return (
@@ -560,7 +582,10 @@ export default function App() {
             <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Health Check</h2>
             <p className="text-slate-500">AI-powered assessment for symptoms and visual conditions.</p>
             {/* Display Current User Email */}
-            <p className="text-xs font-bold text-teal-600 mt-1">Logged in as: {currentUser}</p>
+            <p className="text-xs font-bold text-teal-600 mt-1 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+              Logged in as: {user.email}
+            </p>
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
@@ -667,12 +692,12 @@ export default function App() {
             </div>
           </div>
 
-          {/* NEW: History List */}
+          {/* NEW: History List (Connected to Firebase) */}
           {history.length > 0 && (
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm animate-in slide-in-from-bottom-2">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-700 flex items-center gap-2"><History className="w-4 h-4"/> Recent Scans</h3>
-                <button onClick={clearHistory} className="text-xs text-rose-500 flex items-center gap-1 hover:underline"><Trash2 className="w-3 h-3"/> Clear</button>
+                <h3 className="font-bold text-slate-700 flex items-center gap-2"><History className="w-4 h-4"/> Cloud History</h3>
+                <button onClick={clearHistory} className="text-xs text-rose-500 flex items-center gap-1 hover:underline"><Trash2 className="w-3 h-3"/> Clear All</button>
               </div>
               <div className="space-y-2">
                 {history.map(item => (
