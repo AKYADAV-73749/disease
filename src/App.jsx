@@ -603,7 +603,7 @@ export default function App() {
     
     try {
       if (!apiKey) throw new Error("API Key is missing.");
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
       
       const prompt = `
       Act as a medical AI assistant. Analyze these symptoms: "${input}".
@@ -653,7 +653,7 @@ export default function App() {
         reader.onerror = reject;
         reader.readAsDataURL(imageFile);
       });
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
       
       const prompt = `
       Analyze this medical image. 
@@ -702,7 +702,7 @@ export default function App() {
 
     try {
         if (!apiKey) throw new Error("API Key is missing.");
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = `
         Check the drug interaction between "${drugA}" and "${drugB}".
@@ -749,7 +749,7 @@ export default function App() {
     setChatLoading(true);
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
       
       const conversationHistory = updatedMessages.map(m => `${m.role === 'user' ? 'User' : 'Doctor'}: ${m.text}`).join('\n');
       
