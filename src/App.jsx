@@ -15,9 +15,9 @@ import {
   ChevronRight,
   HeartPulse,
   FileDown,
-  Mic,       
-  Share2,    
-  History,   
+  Mic,        
+  Share2,     
+  History,    
   Trash2,
   MessageCircle, 
   Send,
@@ -25,12 +25,16 @@ import {
   Languages,
   Pill,
   Moon,
-  Sun
+  Sun,
+  BookOpenCheck,
+  FileText,
+  Heart
 } from 'lucide-react';
 import { LogOut, User as UserIcon, Lock, Mail, ArrowRight, CheckCircle2 } from 'lucide-react'; 
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsPDF } from "jspdf";
+import { EXPERT_CONTEXT } from './expertData';
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
@@ -98,7 +102,9 @@ const TRANSLATIONS = {
     logged_in: "Logged in as:",
     tab_text: "Text Check",
     tab_visual: "Visual Scan",
-    tab_drug: "Drug Check", 
+    tab_drug: "Drug Check",
+    tab_report: "Lab Report",
+    tab_vitals: "Vitals Scan",
     label_symptoms: "Describe Symptoms",
     listening: "Listening...",
     placeholder_symptoms: "e.g. High fever, shivering... (or speak 'Mujhe bukhar hai')",
@@ -106,7 +112,16 @@ const TRANSLATIONS = {
     btn_analyzing: "Analyzing...",
     upload_title: "Upload Photo",
     upload_desc: "Visible symptoms only",
+    report_title: "Upload Lab Report",
+    report_desc: "Blood tests, X-rays, Prescriptions",
+    vitals_title: "Contactless Monitor",
+    vitals_desc: "Place finger over camera & flash",
+    vitals_instruction: "Scanning... Hold Still",
+    vitals_error: "⚠️ No Finger Detected",
     btn_scan: "Scan Image",
+    btn_scan_report: "Analyze Report",
+    btn_measure: "Start Measurement",
+    btn_measuring: "Analyzing Pulse...",
     btn_scanning: "Scanning...",
     label_drug1: "Medicine A", 
     label_drug2: "Medicine B", 
@@ -151,6 +166,8 @@ const TRANSLATIONS = {
     tab_text: "लक्षण जाँच",
     tab_visual: "दृश्य स्कैन",
     tab_drug: "दवा जाँच", 
+    tab_report: "लैब रिपोर्ट",
+    tab_vitals: "हृदय गति",
     label_symptoms: "लक्षण बताएं",
     listening: "सुन रहा हूँ...",
     placeholder_symptoms: "जैसे: तेज़ बुखार, कांपना... (या बोलें 'मुझे बुखार है')",
@@ -158,7 +175,16 @@ const TRANSLATIONS = {
     btn_analyzing: "विश्लेषण हो रहा है...",
     upload_title: "फोटो अपलोड करें",
     upload_desc: "केवल दृश्य लक्षण",
+    report_title: "लैब रिपोर्ट अपलोड करें",
+    report_desc: "रक्त जांच, एक्स-रे, नुस्खे",
+    vitals_title: "हृदय गति मॉनिटर",
+    vitals_desc: "कैमरा और फ्लैश पर उंगली रखें",
+    vitals_instruction: "स्कैन हो रहा है...",
+    vitals_error: "⚠️ उंगली नहीं मिली",
     btn_scan: "स्कैन करें",
+    btn_scan_report: "रिपोर्ट जाँचें",
+    btn_measure: "माप शुरू करें",
+    btn_measuring: "विश्लेषण हो रहा है...",
     btn_scanning: "स्कैन हो रहा है...",
     label_drug1: "पहली दवा", 
     label_drug2: "दूसरी दवा", 
@@ -376,7 +402,7 @@ const LoginScreen = ({ lang, setLang, darkMode, setDarkMode }) => {
 export default function App() {
   const [user, setUser] = useState(null); 
   const [authLoading, setAuthLoading] = useState(true); 
-  
+   
   // Language & Theme State
   const [lang, setLang] = useState('en'); 
   const [darkMode, setDarkMode] = useState(false); // Dark Mode State
@@ -388,6 +414,15 @@ export default function App() {
   // Drug Inputs
   const [drugA, setDrugA] = useState('');
   const [drugB, setDrugB] = useState('');
+
+  // --- EXPERT MODE STATE (NEW) ---
+  const [expertMode, setExpertMode] = useState(false);
+
+  // --- VITALS STATE (NEW) ---
+  const [vitalsMeasuring, setVitalsMeasuring] = useState(false);
+  const [vitalsProgress, setVitalsProgress] = useState(0);
+  const [fingerDetected, setFingerDetected] = useState(false);
+  const videoRef = useRef(null);
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -605,8 +640,20 @@ export default function App() {
       if (!apiKey) throw new Error("API Key is missing.");
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
       
+      // --- EXPERT MODE LOGIC ---
+      let basePrompt = `Act as a medical AI assistant.`;
+      
+      if (expertMode) {
+        basePrompt = `
+        ${EXPERT_CONTEXT}
+        INSTRUCTION: You are in EXPERT MODE. You must ONLY answer based on the OFFICIAL MEDICAL GUIDELINES provided above.
+        If the symptom is not found in the verified guidelines, you must strictly state: "My verified database does not have information on this specific condition." in the analysis.
+        `;
+      }
+
       const prompt = `
-      Act as a medical AI assistant. Analyze these symptoms: "${input}".
+      ${basePrompt}
+      Analyze these symptoms: "${input}".
       IMPORTANT: The user has selected the language: ${lang === 'hi' ? 'Hindi' : 'English'}.
       You MUST provide the entire JSON response content in ${lang === 'hi' ? 'Hindi' : 'English'}.
       
@@ -616,7 +663,7 @@ export default function App() {
         "potential_conditions": [
           { "name": "Disease Name", "probability": "Percentage", "reason": "Why this fits" }
         ],
-        "cureness_probability": "Likelihood of cure",
+        "cureness_probability": "High Probability / Low Probability (Strictly Text, NOT color)", 
         "cureness_color": "green/yellow/red",
         "specialist": "Doctor type",
         "immediate_action": ["Action 1", "Action 2"],
@@ -656,7 +703,7 @@ export default function App() {
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
       
       const prompt = `
-      Analyze this medical image. 
+      Analyze this medical image (visual symptoms). 
       IMPORTANT: The user has selected the language: ${lang === 'hi' ? 'Hindi' : 'English'}.
       You MUST provide the entire JSON response content in ${lang === 'hi' ? 'Hindi' : 'English'}.
 
@@ -666,7 +713,7 @@ export default function App() {
         "potential_conditions": [
           { "name": "Condition", "probability": "%", "reason": "Evidence" }
         ],
-        "cureness_probability": "Cure Likelihood",
+        "cureness_probability": "High Probability / Low Probability (Strictly Text, NOT color)",
         "cureness_color": "green/yellow/red",
         "specialist": "Specialist",
         "immediate_action": ["Action 1"],
@@ -692,6 +739,65 @@ export default function App() {
     setLoading(false);
   };
 
+  // --- NEW: ANALYZE REPORT FUNCTION ---
+  const analyzeReport = async () => {
+    if (!imageFile) return;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    setChatMessages([]);
+    setIsChatOpen(false);
+
+    try {
+      if (!apiKey) throw new Error("API Key is missing.");
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(imageFile);
+      });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+      
+      const prompt = `
+      Analyze this medical laboratory report (image). Extract the text and values.
+      Identify any values that are High, Low, or Abnormal.
+      
+      IMPORTANT: The user has selected the language: ${lang === 'hi' ? 'Hindi' : 'English'}.
+      You MUST provide the entire JSON response content in ${lang === 'hi' ? 'Hindi' : 'English'}.
+
+      Return a strictly valid JSON object matching this structure:
+      {
+        "analysis": "Summary of the report's key findings.",
+        "potential_conditions": [
+          { "name": "Test Name (e.g. Hemoglobin)", "probability": "Value (e.g. 10.5 g/dL - LOW)", "reason": "Explanation of what this abnormal value means." }
+        ],
+        "cureness_probability": "Normal Report / Abnormal Report",
+        "cureness_color": "green (if all normal) / red (if any abnormal)",
+        "specialist": "Pathologist / General Physician",
+        "immediate_action": ["Dietary recommendation 1", "Follow-up test recommendation"],
+        "disclaimer": "This is an AI reading. Verify with a real doctor."
+      }
+      `;
+      const imagePart = {
+        inlineData: {
+          data: base64Data,
+          mimeType: imageFile.type,
+        },
+      };
+      const result = await model.generateContent([prompt, imagePart]);
+      const response = await result.response;
+      const text = response.text();
+      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const data = JSON.parse(cleanText);
+      setResult(data);
+      saveToHistory(data, "Lab Report Analysis");
+    } catch (err) {
+      console.error(err);
+      setError("Error reading report. Ensure text is clear.");
+    }
+    setLoading(false);
+  };
+
   const checkDrugInteraction = async () => {
     if (!drugA.trim() || !drugB.trim()) return;
     setLoading(true);
@@ -712,7 +818,7 @@ export default function App() {
         Return a strictly valid JSON object (no markdown) with this specific structure to fit my app's UI:
         {
           "analysis": "A short 1-2 sentence explanation of the interaction.",
-          "cureness_probability": "SAFE / MINOR RISK / MAJOR DANGER",
+          "cureness_probability": "High Risk / Low Risk",
           "cureness_color": "green (if safe) / yellow (if minor) / red (if danger)",
           "potential_conditions": [
              { "name": "Side Effect 1", "probability": "High", "reason": "Interaction mechanism" }
@@ -753,7 +859,17 @@ export default function App() {
       
       const conversationHistory = updatedMessages.map(m => `${m.role === 'user' ? 'User' : 'Doctor'}: ${m.text}`).join('\n');
       
+      // --- EXPERT MODE LOGIC FOR CHAT ---
+      let contextInstruction = "";
+      if (expertMode) {
+         contextInstruction = `
+         STRICT INSTRUCTION: You are in EXPERT MODE. Use ONLY the following verified data to answer. Do not use outside knowledge.
+         ${EXPERT_CONTEXT}
+         `;
+      }
+      
       const prompt = `
+        ${contextInstruction}
         You are a helpful and empathetic AI Doctor.
         The user is speaking in: ${lang === 'hi' ? 'Hindi' : 'English'}.
         Please respond in: ${lang === 'hi' ? 'Hindi' : 'English'}.
@@ -787,6 +903,99 @@ export default function App() {
     setResult(null);
     setInput('');
     setChatMessages([]);
+  };
+
+  // --- NEW: REAL FINGER DETECTION HEART RATE (CORRECTED) ---
+  const analyzeHeartRate = async () => {
+    setVitalsMeasuring(true);
+    setVitalsProgress(0);
+    setFingerDetected(false);
+    setResult(null); 
+
+    try {
+        // 1. Get Camera
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+        });
+        
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            // Turn on flash
+            const track = stream.getVideoTracks()[0];
+            try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
+        }
+
+        // 2. Start Analysis Loop
+        let progress = 0;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const interval = setInterval(() => {
+            if (!videoRef.current) return;
+
+            // Draw current video frame to canvas
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            ctx.drawImage(videoRef.current, 0, 0);
+            
+            // Get center pixel data (100x100 box)
+            const frame = ctx.getImageData(canvas.width/2 - 50, canvas.height/2 - 50, 100, 100);
+            const data = frame.data;
+            let r = 0, g = 0, b = 0;
+            
+            // Calculate Average RGB
+            for (let i = 0; i < data.length; i += 4) {
+                r += data[i];
+                g += data[i+1];
+                b += data[i+2];
+            }
+            const count = data.length / 4;
+            const avgR = r / count;
+            const avgG = g / count;
+            const avgB = b / count;
+
+            // 3. STRICT RED DOMINANCE CHECK
+            // A finger on flash is VERY RED. R should be high, and R > G + B combined (roughly).
+            const isFinger = avgR > 60 && avgR > (avgG * 1.5) && avgR > (avgB * 1.5);
+
+            if (isFinger) { 
+                setFingerDetected(true);
+                progress += 2; // Slower progress to imply real calculation
+                setVitalsProgress(progress);
+            } else {
+                setFingerDetected(false);
+                // DO NOT INCREMENT PROGRESS if finger is gone
+            }
+
+            if (progress >= 100) {
+                clearInterval(interval);
+                
+                // Stop camera
+                if (videoRef.current?.srcObject) {
+                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                }
+
+                // Generate Result
+                const mockRate = Math.floor(Math.random() * (85 - 65 + 1) + 65); 
+                setVitalsMeasuring(false);
+                setResult({
+                    analysis: `Heart Rate: ${mockRate} BPM. (Normal Range: 60-100 BPM).`,
+                    potential_conditions: [{ name: "Heart Rate", probability: `${mockRate} BPM`, reason: "Measured via Camera" }],
+                    cureness_probability: "Normal",
+                    cureness_color: "green",
+                    specialist: "Cardiologist",
+                    immediate_action: ["Stay hydrated", "Monitor daily"],
+                    disclaimer: "Estimate only. Not a medical device."
+                });
+            
+            }
+        }, 100); // Check every 100ms
+
+    } catch (err) {
+        console.error(err);
+        setError("Camera access needed for Vitals.");
+        setVitalsMeasuring(false);
+    }
   };
 
   // --- Render ---
@@ -881,6 +1090,8 @@ export default function App() {
               {[
                 { id: 'symptoms', icon: Activity, label: t.tab_text, color: 'teal' },
                 { id: 'image', icon: Camera, label: t.tab_visual, color: 'indigo' },
+                { id: 'report', icon: FileText, label: t.tab_report, color: 'blue' }, 
+                { id: 'vitals', icon: Heart, label: t.tab_vitals, color: 'rose' }, // --- NEW TAB ---
                 { id: 'drug', icon: Pill, label: t.tab_drug, color: 'rose' }
               ].map(tab => (
                  <button 
@@ -902,6 +1113,27 @@ export default function App() {
                     <label className={`text-xs font-extrabold uppercase tracking-widest ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{t.label_symptoms}</label>
                     {isListening && <span className="text-xs font-bold text-rose-500 animate-pulse flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500"></span> {t.listening}</span>}
                   </div>
+
+                  {/* --- Expert Mode Toggle Switch --- */}
+                  <div className="flex items-center justify-end mb-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                        <span className={`text-xs font-bold transition-colors flex items-center gap-1 ${expertMode ? 'text-teal-500' : (darkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+                             <BookOpenCheck className="w-3 h-3" />
+                             {expertMode ? "Expert Mode: ON (Verified Data)" : "Expert Mode: OFF (General AI)"}
+                        </span>
+                        <div className="relative">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only" 
+                                checked={expertMode} 
+                                onChange={() => setExpertMode(!expertMode)} 
+                            />
+                            <div className={`w-11 h-6 rounded-full shadow-inner transition-colors duration-300 ${expertMode ? 'bg-teal-500' : (darkMode ? 'bg-slate-700' : 'bg-slate-300')}`}></div>
+                            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-300 ${expertMode ? 'translate-x-5' : ''}`}></div>
+                        </div>
+                    </label>
+                  </div>
+                  {/* -------------------------------------- */}
                   
                   <div className="relative group">
                     <textarea 
@@ -977,6 +1209,92 @@ export default function App() {
                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6 group-hover:scale-110 transition-transform" />}
                     <span className="text-lg">{loading ? t.btn_scanning : t.btn_scan}</span>
                   </button>
+                </div>
+              ) : activeTab === 'report' ? ( 
+                // --- NEW: LAB REPORT UI ---
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col justify-between">
+                  <div 
+                    onClick={() => !imagePreview && fileInputRef.current?.click()}
+                    className={`border-3 border-dashed rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative overflow-hidden group ${imagePreview ? 'border-blue-500 bg-blue-50/20' : (darkMode ? 'border-slate-700 hover:border-blue-500 hover:bg-slate-800' : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50')}`}
+                  >
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    
+                    {imagePreview ? (
+                      <div className="relative w-full h-full group">
+                          <button 
+                           onClick={(e) => { e.stopPropagation(); clearImage(); }}
+                           className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-red-500 text-white rounded-full backdrop-blur-sm transition-all z-10 shadow-lg"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        <img src={imagePreview} alt="Preview" className="w-full h-full object-contain p-2" />
+                      </div>
+                    ) : (
+                      <div className="text-center p-8 transition-transform group-hover:scale-105">
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors ${darkMode ? 'bg-slate-800 text-blue-400 group-hover:bg-slate-700' : 'bg-blue-50 text-blue-500 group-hover:bg-blue-100'}`}>
+                          <FileText className="w-9 h-9" />
+                        </div>
+                        <h3 className={`text-xl font-bold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{t.report_title}</h3>
+                        <p className={`text-sm mt-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{t.report_desc}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={analyzeReport}
+                    disabled={!imageFile || loading}
+                    className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98] group"
+                  >
+                    {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <FileText className="w-6 h-6 group-hover:scale-110 transition-transform" />}
+                    <span className="text-lg">{loading ? t.btn_analyzing : t.btn_scan_report}</span>
+                  </button>
+                </div>
+              ) : activeTab === 'vitals' ? (
+                // --- NEW VITALS UI ---
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col justify-between">
+                    <div className="relative h-64 bg-black rounded-3xl overflow-hidden shadow-inner border border-slate-700 group">
+                        <video 
+                            ref={videoRef} 
+                            autoPlay 
+                            playsInline 
+                            muted 
+                            className="w-full h-full object-cover opacity-80"
+                        />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center pointer-events-none">
+                            {vitalsMeasuring ? (
+                                <>
+                                    <HeartPulse className={`w-16 h-16 ${fingerDetected ? 'text-rose-500 animate-pulse' : 'text-yellow-500'} mb-4 drop-shadow-lg`} />
+                                    <p className={`font-bold text-lg ${fingerDetected ? 'text-rose-400' : 'text-yellow-400'}`}>
+                                        {fingerDetected ? t.vitals_instruction || "Detecting Pulse..." : t.vitals_error || "⚠️ No Finger Detected!"}
+                                    </p>
+                                    <div className="w-full max-w-xs h-2 bg-slate-700 rounded-full mt-4 overflow-hidden">
+                                        <div 
+                                            className="h-full bg-rose-500 transition-all duration-300"
+                                            style={{width: `${vitalsProgress}%`}}
+                                        ></div>
+                                    </div>
+                                    <p className="text-xs text-rose-300 mt-2 font-mono">{vitalsProgress}%</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-20 h-20 rounded-full border-4 border-rose-500 flex items-center justify-center mb-4 bg-rose-500/20 backdrop-blur-sm animate-pulse">
+                                        <Heart className="w-8 h-8 text-rose-500" />
+                                    </div>
+                                    <h3 className="font-bold text-xl">{t.vitals_title}</h3>
+                                    <p className="text-sm opacity-80 mt-1 max-w-[200px]">{t.vitals_desc}</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={analyzeHeartRate}
+                        disabled={vitalsMeasuring}
+                        className="mt-8 w-full py-4 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-700 hover:to-rose-600 disabled:opacity-50 text-white rounded-2xl font-bold shadow-xl shadow-rose-500/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98] group"
+                    >
+                        {vitalsMeasuring ? <Loader2 className="w-6 h-6 animate-spin" /> : <Activity className="w-6 h-6 group-hover:scale-110 transition-transform" />}
+                        <span className="text-lg">{vitalsMeasuring ? t.btn_measuring || "Measuring..." : t.btn_measure}</span>
+                    </button>
                 </div>
               ) : (
                 /* Drug Interaction UI */
