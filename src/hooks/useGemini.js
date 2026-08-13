@@ -1,4 +1,4 @@
-﻿// src/hooks/useGemini.js
+// src/hooks/useGemini.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useApp } from "../context/AppContext";
 import { EXPERT_CONTEXT } from "../expertData";
@@ -19,6 +19,68 @@ PATIENT PROFILE (Use this to personalize the response):
 - Current Medications: ${healthProfile.medications || "None"}
 Consider this profile when assessing risk factors, medication interactions, and recommendations.
 `;
+}
+
+// -------------------------------------------------------------
+// LOCAL FALLBACK ENGINE (For 429 Rate Limits or Offline Mode)
+// -------------------------------------------------------------
+function generateLocalFallback(input, isImage = false, isReport = false) {
+  if (isImage || isReport) {
+    return {
+      analysis: "⚠️ AI Quota Exceeded (Rate Limit).",
+      potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "You have exceeded your free Gemini AI quota." }],
+      cureness_probability: "API Blocked",
+      cureness_color: "red",
+      specialist: "N/A",
+      immediate_action: ["Wait 1 minute and try again.", "For images, local fallback is not supported."],
+      disclaimer: "This is an automatic system response."
+    };
+  }
+
+  const blocks = EXPERT_CONTEXT.split("\n\n");
+  const words = input.toLowerCase().split(/[,\s]+/).filter(w => w.length > 3);
+  
+  let bestMatch = null;
+  let maxScore = 0;
+
+  for (const block of blocks) {
+    if (!block.includes("Symptoms:")) continue;
+    let score = 0;
+    words.forEach(w => {
+      if (block.toLowerCase().includes(w)) score++;
+    });
+    if (score > maxScore) {
+      maxScore = score;
+      bestMatch = block;
+    }
+  }
+
+  if (bestMatch && maxScore > 0) {
+    const lines = bestMatch.split("\n");
+    const name = lines[0].replace(/^\d+\.\s*/, "").replace(":", "").trim();
+    const action = lines.find(l => l.includes("- Action:"))?.replace("- Action:", "")?.trim() || "Consult a doctor.";
+    const warning = lines.find(l => l.includes("- Warning:"))?.replace("- Warning:", "")?.trim() || "";
+
+    return {
+      analysis: `(Offline Fallback) Local database matched your keywords with ${name}.`,
+      potential_conditions: [{ name, probability: "Local Match", reason: warning || "Matched via local emergency database." }],
+      cureness_probability: warning ? "High Risk" : "Moderate",
+      cureness_color: warning ? "red" : "yellow",
+      specialist: "General Physician",
+      immediate_action: [action],
+      disclaimer: "This result was generated offline from local databases due to API rate limits (429)."
+    };
+  }
+
+  return {
+    analysis: "(Offline Fallback) Could not definitively match your symptoms locally.",
+    potential_conditions: [{ name: "Unknown", probability: "N/A", reason: "Requires AI cloud access." }],
+    cureness_probability: "Unknown",
+    cureness_color: "yellow",
+    specialist: "General Physician",
+    immediate_action: ["Rest and hydrate.", "Consult a doctor if symptoms persist.", "Try again in 1 minute when AI quota resets."],
+    disclaimer: "You have exceeded your AI quota. This is a generic offline response."
+  };
 }
 
 export function useGemini() {
@@ -60,7 +122,14 @@ Return ONLY valid JSON (no markdown):
       saveToHistory(data, input);
     } catch (e) {
       console.error(e);
-      setError("Could not analyze symptoms. Please try again.");
+      if (String(e).includes("429") || String(e).includes("fetch")) {
+        console.warn("AI Rate Limit Hit! Engaging Local Fallback Engine.");
+        const fallbackData = generateLocalFallback(input);
+        setResult(fallbackData);
+        saveToHistory(fallbackData, input + " (Offline)");
+      } else {
+        setError("Could not analyze symptoms. Please try again.");
+      }
     }
     setLoading(false);
   }
@@ -88,7 +157,12 @@ Return ONLY valid JSON:
       saveToHistory(data, "Image Analysis");
     } catch (e) {
       console.error(e);
-      setError("Error analyzing image. Ensure the image is clear.");
+      if (String(e).includes("429") || String(e).includes("fetch")) {
+        const fallbackData = generateLocalFallback("", true, false);
+        setResult(fallbackData);
+      } else {
+        setError("Error analyzing image. Ensure the image is clear.");
+      }
     }
     setLoading(false);
   }
@@ -116,7 +190,12 @@ Return ONLY valid JSON:
       saveToHistory(data, "Lab Report Analysis");
     } catch (e) {
       console.error(e);
-      setError("Error reading report. Ensure text is clear.");
+      if (String(e).includes("429") || String(e).includes("fetch")) {
+        const fallbackData = generateLocalFallback("", false, true);
+        setResult(fallbackData);
+      } else {
+        setError("Error reading report. Ensure text is clear.");
+      }
     }
     setLoading(false);
   }
@@ -138,7 +217,19 @@ Return ONLY valid JSON:
       saveToHistory(data, `Drug Check: ${drugA} + ${drugB}`);
     } catch (e) {
       console.error(e);
-      setError("Could not check interaction. Please try again.");
+      if (String(e).includes("429") || String(e).includes("fetch")) {
+        setResult({
+          analysis: "⚠️ AI Quota Exceeded. Cannot check drug interaction offline.",
+          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Try again in 1 minute." }],
+          cureness_probability: "API Blocked",
+          cureness_color: "red",
+          specialist: "N/A",
+          immediate_action: ["Wait for quota reset."],
+          disclaimer: "Automatic system response."
+        });
+      } else {
+        setError("Could not check interaction. Please try again.");
+      }
     }
     setLoading(false);
   }
@@ -162,7 +253,7 @@ Reply to last message. Max 3 sentences. Always recommend real doctor for serious
       return res.response.text();
     } catch (e) {
       console.error(e);
-      return "I am having trouble connecting. Please try again.";
+      return "⚠️ Chat is temporarily unavailable due to AI quota limits (Error 429). Please wait a moment.";
     }
   }
 
