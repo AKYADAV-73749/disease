@@ -1,4 +1,4 @@
-﻿// src/components/tabs/SymptomsTab.jsx
+// src/components/tabs/SymptomsTab.jsx
 import React, { useState } from "react";
 import { BrainCircuit, Loader2, Mic, Plus, BookOpenCheck } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -19,7 +19,7 @@ export default function SymptomsTab() {
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+    <div className="">
       <div className="flex justify-between items-center mb-4">
         <label className={`text-xs font-extrabold uppercase tracking-widest ${dm ? "text-slate-500" : "text-slate-400"}`}>{t.label_symptoms}</label>
         {isListening && <span className="text-xs font-bold text-rose-500 animate-pulse flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" />{t.listening}</span>}

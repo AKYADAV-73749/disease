@@ -1,4 +1,4 @@
-﻿// src/components/tabs/LabReportTab.jsx
+// src/components/tabs/LabReportTab.jsx
 import React, { useState, useRef } from "react";
 import { FileText, Loader2, X } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -21,7 +21,7 @@ export default function LabReportTab() {
   const clearImage = () => { setImageFile(null); setImagePreview(null); };
 
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col justify-between">
+    <div className="h-full flex flex-col justify-between">
       <div onClick={() => !imagePreview && fileInputRef.current?.click()}
         className={`border-3 border-dashed rounded-3xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative overflow-hidden group ${imagePreview ? "border-blue-500 bg-blue-50/20" : (dm ? "border-slate-700 hover:border-blue-500 hover:bg-slate-800" : "border-slate-200 hover:border-blue-400 hover:bg-slate-50")}`}>
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleUpload} />

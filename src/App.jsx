@@ -1,4 +1,4 @@
-﻿// src/App.jsx — Slim Orchestrator (~150 lines)
+// src/App.jsx — Slim Orchestrator (~150 lines)
 import React from "react";
 import {
   Activity, Camera, FileText, Heart, Pill, User,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 
 import { AppProvider, useApp } from "./context/AppContext";
+import { motion, AnimatePresence } from "framer-motion";
 import LoginScreen   from "./components/auth/LoginScreen";
 import Header        from "./components/layout/Header";
 import SymptomsTab   from "./components/tabs/SymptomsTab";
@@ -83,8 +84,18 @@ function MediScanApp() {
               ))}
             </div>
 
-            <div className="p-6 md:p-8 min-h-[400px]">
-              {tabContent[activeTab]}
+            <div className="p-6 md:p-8 min-h-[400px] relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  {tabContent[activeTab]}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 

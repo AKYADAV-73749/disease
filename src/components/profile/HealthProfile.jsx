@@ -1,4 +1,4 @@
-﻿// src/components/profile/HealthProfile.jsx
+// src/components/profile/HealthProfile.jsx
 import React from "react";
 import { User, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -14,7 +14,7 @@ export default function HealthProfile() {
   const labelClass = `block text-xs font-bold uppercase tracking-wider mb-1.5 ${dm ? "text-slate-500" : "text-slate-400"}`;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className={`text-xl font-bold flex items-center gap-2 ${dm ? "text-white" : "text-slate-800"}`}>

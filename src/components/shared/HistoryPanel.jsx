@@ -1,6 +1,7 @@
-﻿// src/components/shared/HistoryPanel.jsx
+// src/components/shared/HistoryPanel.jsx
 import React from "react";
-import { History, Trash2 } from "lucide-react";
+import { History, Trash2, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 import { useApp } from "../../context/AppContext";
 
 export default function HistoryPanel() {
@@ -25,20 +26,34 @@ export default function HistoryPanel() {
           <Trash2 className="w-3 h-3" />{t.clear_all}
         </button>
       </div>
-      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+      <motion.div 
+        className="space-y-2 max-h-48 overflow-y-auto pr-1"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+        }}
+      >
         {history.map(item => (
-          <div key={item.id} onClick={() => loadHistoryItem(item)}
+          <motion.div 
+            key={item.id} 
+            variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}
+            onClick={() => loadHistoryItem(item)}
             className={`p-3 rounded-xl cursor-pointer transition-all border group shadow-sm hover:shadow-md hover:scale-[1.01] ${dm ? "bg-slate-800 border-slate-700 hover:bg-slate-700" : "bg-white hover:bg-teal-50 border-slate-100 hover:border-teal-200"}`}>
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
-              <span>{item.date}</span>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-slate-400">{item.date}</span>
               <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${colorMap[item.result?.cureness_color] || colorMap.green}`}>
                 {item.result?.cureness_probability}
               </span>
             </div>
-            <p className={`text-sm font-medium truncate group-hover:text-teal-500 ${dm ? "text-slate-300" : "text-slate-700"}`}>{item.input}</p>
-          </div>
+            <div className="flex justify-between items-center">
+              <p className={`text-sm font-medium truncate group-hover:text-teal-500 ${dm ? "text-slate-300" : "text-slate-700"}`}>{item.input}</p>
+              <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${dm ? "text-slate-600" : "text-slate-300"}`} />
+            </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

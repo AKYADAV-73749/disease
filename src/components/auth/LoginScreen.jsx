@@ -1,4 +1,4 @@
-﻿// src/components/auth/LoginScreen.jsx
+// src/components/auth/LoginScreen.jsx
 import React, { useState, useRef } from "react";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -8,6 +8,7 @@ import {
 import { auth, googleProvider } from "../../config/firebase";
 import { Stethoscope, Mail, Lock, ArrowRight, AlertTriangle, Loader2, Phone, KeyRound, RotateCcw } from "lucide-react";
 import { Languages, Moon, Sun } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "../../context/AppContext";
 
 export default function LoginScreen() {
@@ -133,48 +134,60 @@ export default function LoginScreen() {
       {/* Invisible reCAPTCHA anchor */}
       <div id="recaptcha-container" ref={recaptchaRef} />
 
-      {/* Terms Modal */}
-      {showTerms && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className={`rounded-3xl p-8 max-w-md w-full shadow-2xl border ${dm ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}>
-            <h3 className={`text-2xl font-bold mb-4 ${dm ? "text-white" : "text-slate-800"}`}>{t.terms}</h3>
-            <div className={`h-48 overflow-y-auto text-sm space-y-4 mb-6 pr-2 leading-relaxed ${dm ? "text-slate-400" : "text-slate-600"}`}>
-              <p>1. <strong>Not a Medical Device:</strong> MediScan AI is a prototype for informational purposes only.</p>
-              <p>2. <strong>Data Privacy:</strong> Your data is stored securely in the cloud using Firebase.</p>
-              <p>3. <strong>Accuracy:</strong> AI analysis may be incorrect. Always consult a real doctor.</p>
-              <p>4. <strong>Emergency:</strong> This app is NOT for emergencies. Call 112 for life-threatening situations.</p>
-            </div>
-            <button onClick={() => setShowTerms(false)} className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-teal-500 text-white rounded-xl font-bold hover:shadow-lg transition-all active:scale-95">
-              I Understand
-            </button>
+      <AnimatePresence>
+        {/* Terms Modal */}
+        {showTerms && (
+          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`rounded-3xl p-8 max-w-sm w-full shadow-2xl border ${dm ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}
+            >
+              <h3 className={`text-xl font-bold mb-4 ${dm ? "text-white" : "text-slate-800"}`}>Terms of Service</h3>
+              <div className={`h-48 overflow-y-auto text-sm space-y-4 mb-6 pr-2 leading-relaxed ${dm ? "text-slate-400" : "text-slate-600"}`}>
+                <p>1. <strong>Not a Medical Device:</strong> MediScan AI is a prototype for informational purposes only.</p>
+                <p>2. <strong>Data Privacy:</strong> Your data is stored securely in the cloud using Firebase.</p>
+                <p>3. <strong>Accuracy:</strong> AI analysis may be incorrect. Always consult a real doctor.</p>
+                <p>4. <strong>Emergency:</strong> This app is NOT for emergencies. Call 112 for life-threatening situations.</p>
+              </div>
+              <button onClick={() => setShowTerms(false)} className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-teal-500 text-white rounded-xl font-bold hover:shadow-lg transition-all active:scale-95">
+                I Understand
+              </button>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Forgot Password Modal */}
-      {showForgot && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className={`rounded-3xl p-8 max-w-sm w-full shadow-2xl border ${dm ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}>
-            <button onClick={() => { setShowForgot(false); setResetSent(false); setResetEmail(""); }} className={`mb-4 text-xs flex items-center gap-1 font-bold ${dm ? "text-slate-400" : "text-slate-500"}`}>
-              <RotateCcw className="w-3 h-3" /> Back
-            </button>
-            <h3 className={`text-xl font-bold mb-2 ${dm ? "text-white" : "text-slate-800"}`}>{t.reset_password}</h3>
-            {resetSent ? (
-              <p className="text-sm text-emerald-500 font-bold mt-4">{t.reset_sent}</p>
-            ) : (
-              <form onSubmit={handleResetPassword} className="space-y-4 mt-4">
-                <input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className={`w-full px-4 py-3.5 border rounded-xl focus:ring-4 outline-none transition-all font-medium ${dm ? "bg-slate-800 border-slate-700 text-white focus:ring-teal-500/20 focus:border-teal-500" : "bg-slate-50 border-slate-200 text-slate-700 focus:border-teal-500"}`} />
-                <button type="submit" disabled={isLoading} className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                  {t.reset_password}
-                </button>
-              </form>
-            )}
+        {/* Forgot Password Modal */}
+        {showForgot && (
+          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`rounded-3xl p-8 max-w-sm w-full shadow-2xl border ${dm ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}
+            >
+              <button onClick={() => { setShowForgot(false); setResetSent(false); setResetEmail(""); }} className={`mb-4 text-xs flex items-center gap-1 font-bold ${dm ? "text-slate-400" : "text-slate-500"}`}>
+                <RotateCcw className="w-3 h-3" /> Back
+              </button>
+              <h3 className={`text-xl font-bold mb-2 ${dm ? "text-white" : "text-slate-800"}`}>{t.reset_password}</h3>
+              {resetSent ? (
+                <p className="text-sm text-emerald-500 font-bold mt-4">{t.reset_sent}</p>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4 mt-4">
+                  <input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className={`w-full px-4 py-3.5 border rounded-xl focus:ring-4 outline-none transition-all font-medium ${dm ? "bg-slate-800 border-slate-700 text-white focus:ring-teal-500/20 focus:border-teal-500" : "bg-slate-50 border-slate-200 text-slate-700 focus:border-teal-500"}`} />
+                  <button type="submit" disabled={isLoading} className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                    {t.reset_password}
+                  </button>
+                </form>
+              )}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <div className={`backdrop-blur-xl max-w-md w-full rounded-[2rem] shadow-2xl border overflow-hidden z-10 transition-colors duration-500 ${dm ? "bg-slate-900/60 border-slate-800" : "bg-white/80 border-white"}`}>
         {/* Header */}
@@ -198,11 +211,20 @@ export default function LoginScreen() {
             ))}
           </div>
 
-          {error && (
-            <div className={`p-4 border rounded-xl flex items-start gap-3 text-sm font-bold animate-in slide-in-from-top-2 ${dm ? "bg-rose-900/30 border-rose-800 text-rose-300" : "bg-rose-50 border-rose-100 text-rose-600"}`}>
-              <AlertTriangle className="w-5 h-5 shrink-0" />{error}
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, y: -10 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -10 }}
+                className="overflow-hidden"
+              >
+                <div className={`p-4 border rounded-xl flex items-start gap-3 text-sm font-bold ${dm ? "bg-rose-900/30 border-rose-800 text-rose-300" : "bg-rose-50 border-rose-100 text-rose-600"}`}>
+                  <AlertTriangle className="w-5 h-5 shrink-0" />{error}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Auth Method Tabs */}
           <div className="flex gap-2">

@@ -1,6 +1,7 @@
-﻿// src/components/results/ResultPanel.jsx
+// src/components/results/ResultPanel.jsx
 import React from "react";
 import { Sparkles, HeartPulse, Stethoscope, Thermometer, AlertTriangle, FileDown, Share2, MapPin, MessageCircle, BrainCircuit } from "lucide-react";
+import { motion } from "framer-motion";
 import { useApp } from "../../context/AppContext";
 
 export default function ResultPanel() {
@@ -38,11 +39,19 @@ export default function ResultPanel() {
   const cc = colorClass;
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-700 relative">
+    <motion.div 
+      initial="hidden" 
+      animate="visible" 
+      variants={{
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
+      }}
+      className="space-y-6 relative"
+    >
       {loading && <div className={`absolute inset-0 z-10 rounded-[2.5rem] backdrop-blur-sm ${dm ? "bg-slate-950/60" : "bg-white/60"} flex items-center justify-center`}><BrainCircuit className="w-8 h-8 text-teal-500 animate-pulse" /></div>}
 
       {/* Summary Card */}
-      <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group">
+      <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-teal-500/20 transition-all duration-700" />
         <div className="relative z-10">
           <div className="flex items-start gap-5 mb-6">
@@ -63,30 +72,34 @@ export default function ResultPanel() {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Chat Button */}
-      <button onClick={() => setIsChatOpen(true)}
+      <motion.button variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }} onClick={() => setIsChatOpen(true)}
         className="w-full py-5 bg-gradient-to-r from-teal-700 to-teal-600 hover:from-teal-800 hover:to-teal-700 text-white rounded-2xl font-bold shadow-xl shadow-teal-900/20 transition-all flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98]">
         <MessageCircle className="w-6 h-6" />
         <span className="text-lg">{t.chat_btn}</span>
-      </button>
+      </motion.button>
 
       {/* Status Card */}
-      <div className={`rounded-[2rem] p-8 border-2 transition-all duration-500 ${cc.bg}`}>
+      <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className={`rounded-[2rem] p-8 border-2 transition-all duration-500 ${cc.bg}`}>
         <div className="flex items-center gap-3 mb-3">
           <div className={`p-2 rounded-full ${cc.icon}`}><HeartPulse className="w-6 h-6" /></div>
           <h3 className={`font-bold text-sm uppercase tracking-widest ${cc.text}`}>{t.cure_prob}</h3>
         </div>
         <p className={`text-3xl font-black mb-4 ${cc.val}`}>{result.cureness_probability}</p>
         <div className={`w-full rounded-full h-3 overflow-hidden shadow-inner ${dm ? "bg-black/30" : "bg-white/60"}`}>
-          <div className={`h-full rounded-full transition-all duration-1000 ease-out ${cc.bar}`}
-            style={{ width: result.cureness_probability?.match(/\d+%/)?.[0] ?? "100%" }} />
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: result.cureness_probability?.match(/\d+%/)?.[0] ?? "100%" }}
+            transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
+            className={`h-full rounded-full ${cc.bar}`}
+          />
         </div>
-      </div>
+      </motion.div>
 
       {/* Conditions */}
-      <div className={`backdrop-blur-md rounded-[2rem] shadow-lg border p-8 ${dm ? "bg-slate-900/60 border-slate-800" : "bg-white/80 border-white"}`}>
+      <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className={`backdrop-blur-md rounded-[2rem] shadow-lg border p-8 ${dm ? "bg-slate-900/60 border-slate-800" : "bg-white/80 border-white"}`}>
         <h4 className={`text-xs font-bold uppercase tracking-widest mb-6 ${dm ? "text-slate-500" : "text-slate-400"}`}>{t.conditions_title}</h4>
         <div className="space-y-6">
           {result.potential_conditions.map((c, i) => (
@@ -96,17 +109,21 @@ export default function ResultPanel() {
                 <span className="text-sm font-bold text-white bg-teal-500 px-2 py-1 rounded-lg shadow-sm">{c.probability}</span>
               </div>
               <div className={`w-full rounded-full h-2 mb-3 overflow-hidden ${dm ? "bg-slate-700" : "bg-slate-100"}`}>
-                <div className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full transition-all duration-1000 ease-out"
-                  style={{ width: c.probability?.includes("%") ? c.probability : "100%" }} />
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: c.probability?.includes("%") ? c.probability : "100%" }}
+                  transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 + (i * 0.2) }}
+                  className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full"
+                />
               </div>
               <p className={`text-sm leading-relaxed ${dm ? "text-slate-400" : "text-slate-500"}`}>{c.reason}</p>
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Actions Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className={`backdrop-blur-sm rounded-[2rem] p-6 border hover:shadow-lg transition-all ${dm ? "bg-indigo-900/20 border-indigo-800" : "bg-indigo-50/80 border-indigo-100"}`}>
           <div className="flex items-center gap-2 text-indigo-600 mb-3">
             <Stethoscope className="w-5 h-5" />
@@ -132,15 +149,15 @@ export default function ResultPanel() {
             ))}
           </ul>
         </div>
-      </div>
+      </motion.div>
 
       {/* Disclaimer */}
-      <div className={`rounded-2xl p-5 border flex gap-4 items-start ${dm ? "bg-rose-900/20 border-rose-800" : "bg-rose-50/50 border-rose-100"}`}>
+      <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className={`rounded-2xl p-5 border flex gap-4 items-start ${dm ? "bg-rose-900/20 border-rose-800" : "bg-rose-50/50 border-rose-100"}`}>
         <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <p className={`text-xs leading-relaxed font-medium ${dm ? "text-rose-300" : "text-rose-800"}`}>
           <strong>{t.disclaimer_title}</strong> {result.disclaimer}
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

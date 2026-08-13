@@ -1,4 +1,4 @@
-﻿// src/components/tabs/DrugCheckTab.jsx
+// src/components/tabs/DrugCheckTab.jsx
 import React, { useState } from "react";
 import { Pill, Plus, ShieldAlert, Loader2 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -14,7 +14,7 @@ export default function DrugCheckTab() {
   const inputClass = `w-full pl-14 pr-4 py-4 border-2 rounded-2xl focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-bold shadow-sm ${dm ? "bg-slate-800 border-slate-700 text-white placeholder:text-slate-600" : "bg-white border-slate-100 text-slate-700"}`;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-full justify-between">
+    <div className="flex flex-col h-full justify-between">
       <div className="space-y-5">
         {[{ label: t.label_drug1, val: drugA, set: setDrugA, ph: "e.g. Aspirin" },
           { label: t.label_drug2, val: drugB, set: setDrugB, ph: "e.g. Ibuprofen" }]

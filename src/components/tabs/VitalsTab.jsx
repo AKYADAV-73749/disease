@@ -1,4 +1,4 @@
-﻿// src/components/tabs/VitalsTab.jsx
+// src/components/tabs/VitalsTab.jsx
 import React from "react";
 import { Activity, Heart, HeartPulse, Loader2 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
@@ -10,7 +10,7 @@ export default function VitalsTab() {
   const dm = darkMode;
 
   return (
-    <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col justify-between">
+    <div className="h-full flex flex-col justify-between">
       <div className="relative h-64 bg-black rounded-3xl overflow-hidden shadow-inner border border-slate-700">
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-80" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center pointer-events-none">
