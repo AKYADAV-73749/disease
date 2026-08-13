@@ -2,8 +2,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useApp } from "../context/AppContext";
 import { EXPERT_CONTEXT } from "../expertData";
+import Groq from "groq-sdk";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+const groq = new Groq({ apiKey: import.meta.env.VITE_GROQ_API_KEY, dangerouslyAllowBrowser: true });
 
 function buildProfileContext(healthProfile) {
   if (!healthProfile || !healthProfile.name) return "";
@@ -22,66 +24,25 @@ Consider this profile when assessing risk factors, medication interactions, and 
 }
 
 // -------------------------------------------------------------
-// LOCAL FALLBACK ENGINE (For 429 Rate Limits or Offline Mode)
+// MULTI-AI FALLBACK ENGINE (Groq / Llama 3)
 // -------------------------------------------------------------
-function generateLocalFallback(input, isImage = false, isReport = false) {
-  if (isImage || isReport) {
-    return {
-      analysis: "⚠️ AI Quota Exceeded (Rate Limit).",
-      potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "You have exceeded your free Gemini AI quota." }],
-      cureness_probability: "API Blocked",
-      cureness_color: "red",
-      specialist: "N/A",
-      immediate_action: ["Wait 1 minute and try again.", "For images, local fallback is not supported."],
-      disclaimer: "This is an automatic system response."
-    };
-  }
-
-  const blocks = EXPERT_CONTEXT.split("\n\n");
-  const words = input.toLowerCase().split(/[,\s]+/).filter(w => w.length > 3);
-  
-  let bestMatch = null;
-  let maxScore = 0;
-
-  for (const block of blocks) {
-    if (!block.includes("Symptoms:")) continue;
-    let score = 0;
-    words.forEach(w => {
-      if (block.toLowerCase().includes(w)) score++;
+async function generateGroqFallback(prompt) {
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.2,
+      response_format: { type: "json_object" }
     });
-    if (score > maxScore) {
-      maxScore = score;
-      bestMatch = block;
-    }
+    
+    const text = chatCompletion.choices[0]?.message?.content || "";
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Groq Fallback Error:", error);
+    return null;
   }
-
-  if (bestMatch && maxScore > 0) {
-    const lines = bestMatch.split("\n");
-    const name = lines[0].replace(/^\d+\.\s*/, "").replace(":", "").trim();
-    const action = lines.find(l => l.includes("- Action:"))?.replace("- Action:", "")?.trim() || "Consult a doctor.";
-    const warning = lines.find(l => l.includes("- Warning:"))?.replace("- Warning:", "")?.trim() || "";
-
-    return {
-      analysis: `(Offline Fallback) Local database matched your keywords with ${name}.`,
-      potential_conditions: [{ name, probability: "Local Match", reason: warning || "Matched via local emergency database." }],
-      cureness_probability: warning ? "High Risk" : "Moderate",
-      cureness_color: warning ? "red" : "yellow",
-      specialist: "General Physician",
-      immediate_action: [action],
-      disclaimer: "This result was generated offline from local databases due to API rate limits (429)."
-    };
-  }
-
-  return {
-    analysis: "(Offline Fallback) Could not definitively match your symptoms locally.",
-    potential_conditions: [{ name: "Unknown", probability: "N/A", reason: "Requires AI cloud access." }],
-    cureness_probability: "Unknown",
-    cureness_color: "yellow",
-    specialist: "General Physician",
-    immediate_action: ["Rest and hydrate.", "Consult a doctor if symptoms persist.", "Try again in 1 minute when AI quota resets."],
-    disclaimer: "You have exceeded your AI quota. This is a generic offline response."
-  };
 }
+
 
 export function useGemini() {
   const {
@@ -96,21 +57,22 @@ export function useGemini() {
     if (!input.trim()) return;
     setLoading(true); setResult(null); setError(null);
     setChatMessages([]); setIsChatOpen(false);
+    let prompt = "";
     try {
       const profileCtx = buildProfileContext(healthProfile);
       let basePrompt = `Act as a medical AI assistant.`;
       if (expertMode) {
         basePrompt = `${EXPERT_CONTEXT}\nINSTRUCTION: EXPERT MODE. Use ONLY the verified guidelines above.`;
       }
-      const prompt = `${basePrompt}\n${profileCtx}
+      prompt = `${basePrompt}\n${profileCtx}
 Analyze symptoms: "${input}".
 Language: ${langLabel}. ALL response content MUST be in ${langLabel}.
 Return ONLY valid JSON (no markdown):
 {
   "analysis": "1-sentence summary",
   "potential_conditions": [{"name":"","probability":"","reason":""}],
-  "cureness_probability": "Text only",
-  "cureness_color": "green|yellow|red",
+  "cureness_probability": "Short text (e.g., 'High', 'Moderate', 'Low')",
+  "cureness_color": "green|yellow|red (must be exactly one of these)",
   "specialist": "Doctor type",
   "immediate_action": ["Action 1","Action 2"],
   "disclaimer": "Disclaimer text"
@@ -121,12 +83,16 @@ Return ONLY valid JSON (no markdown):
       setResult(data);
       saveToHistory(data, input);
     } catch (e) {
-      console.error(e);
+      console.error("Gemini Error:", e);
       if (String(e).includes("429") || String(e).includes("fetch")) {
-        console.warn("AI Rate Limit Hit! Engaging Local Fallback Engine.");
-        const fallbackData = generateLocalFallback(input);
-        setResult(fallbackData);
-        saveToHistory(fallbackData, input + " (Offline)");
+        console.warn("Gemini Rate Limit Hit! Engaging Groq AI Fallback.");
+        const fallbackData = await generateGroqFallback(prompt);
+        if (fallbackData) {
+          setResult(fallbackData);
+          saveToHistory(fallbackData, input + " (Groq AI)");
+        } else {
+          setError("Both AI engines failed. Please try again later.");
+        }
       } else {
         setError("Could not analyze symptoms. Please try again.");
       }
@@ -158,8 +124,15 @@ Return ONLY valid JSON:
     } catch (e) {
       console.error(e);
       if (String(e).includes("429") || String(e).includes("fetch")) {
-        const fallbackData = generateLocalFallback("", true, false);
-        setResult(fallbackData);
+        setResult({
+          analysis: "⚠️ Gemini AI Quota Exceeded (Rate Limit).",
+          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Groq fallback does not support image analysis yet." }],
+          cureness_probability: "API Blocked",
+          cureness_color: "red",
+          specialist: "N/A",
+          immediate_action: ["Wait 1 minute for quota to reset.", "Try describing your symptoms in the Symptoms tab instead."],
+          disclaimer: "Automatic system response."
+        });
       } else {
         setError("Error analyzing image. Ensure the image is clear.");
       }
@@ -191,8 +164,15 @@ Return ONLY valid JSON:
     } catch (e) {
       console.error(e);
       if (String(e).includes("429") || String(e).includes("fetch")) {
-        const fallbackData = generateLocalFallback("", false, true);
-        setResult(fallbackData);
+        setResult({
+          analysis: "⚠️ Gemini AI Quota Exceeded (Rate Limit).",
+          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Groq fallback does not support PDF/Image analysis yet." }],
+          cureness_probability: "API Blocked",
+          cureness_color: "red",
+          specialist: "N/A",
+          immediate_action: ["Wait 1 minute for quota to reset."],
+          disclaimer: "Automatic system response."
+        });
       } else {
         setError("Error reading report. Ensure text is clear.");
       }
@@ -204,9 +184,10 @@ Return ONLY valid JSON:
     if (!drugA.trim() || !drugB.trim()) return;
     setLoading(true); setResult(null); setError(null);
     setChatMessages([]); setIsChatOpen(false);
+    let prompt = "";
     try {
       const profileCtx = buildProfileContext(healthProfile);
-      const prompt = `${profileCtx}
+      prompt = `${profileCtx}
 Check drug interaction between "${drugA}" and "${drugB}".
 Language: ${langLabel}. Respond ONLY in ${langLabel}.
 Return ONLY valid JSON:
@@ -218,15 +199,14 @@ Return ONLY valid JSON:
     } catch (e) {
       console.error(e);
       if (String(e).includes("429") || String(e).includes("fetch")) {
-        setResult({
-          analysis: "⚠️ AI Quota Exceeded. Cannot check drug interaction offline.",
-          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Try again in 1 minute." }],
-          cureness_probability: "API Blocked",
-          cureness_color: "red",
-          specialist: "N/A",
-          immediate_action: ["Wait for quota reset."],
-          disclaimer: "Automatic system response."
-        });
+        console.warn("Gemini Rate Limit Hit! Engaging Groq AI Fallback.");
+        const fallbackData = await generateGroqFallback(prompt);
+        if (fallbackData) {
+          setResult(fallbackData);
+          saveToHistory(fallbackData, `Drug Check: ${drugA} + ${drugB} (Groq AI)`);
+        } else {
+          setError("Both AI engines failed. Please try again later.");
+        }
       } else {
         setError("Could not check interaction. Please try again.");
       }
@@ -234,17 +214,15 @@ Return ONLY valid JSON:
     setLoading(false);
   }
 
-  async function sendChatMessage(chatInput, result, chatMessages, setChatMessages) {
+  async function sendChatMessage(chatInput, result, chatMessages) {
     if (!chatInput.trim() || !result) return;
-    const userMsg = { role: "user", text: chatInput };
-    const updated = [...chatMessages, userMsg];
-    setChatMessages(updated);
+    let prompt = "";
     try {
       const profileCtx = buildProfileContext(healthProfile);
       let ctxInstruction = "";
       if (expertMode) ctxInstruction = `EXPERT MODE: Use ONLY verified data.\n${EXPERT_CONTEXT}\n`;
-      const history = updated.map(m => `${m.role === "user" ? "User" : "Doctor"}: ${m.text}`).join("\n");
-      const prompt = `${ctxInstruction}${profileCtx}
+      const history = chatMessages.map(m => `${m.role === "user" ? "User" : "Doctor"}: ${m.text}`).join("\n");
+      prompt = `${ctxInstruction}${profileCtx}
 You are a helpful AI Doctor. Language: ${langLabel}. Respond in ${langLabel}.
 CONTEXT: Analysis: ${result.analysis} | Conditions: ${result.potential_conditions.map(c=>c.name).join(", ")} | Specialist: ${result.specialist}
 CONVERSATION:\n${history}
@@ -253,7 +231,20 @@ Reply to last message. Max 3 sentences. Always recommend real doctor for serious
       return res.response.text();
     } catch (e) {
       console.error(e);
-      return "⚠️ Chat is temporarily unavailable due to AI quota limits (Error 429). Please wait a moment.";
+      if (String(e).includes("429") || String(e).includes("fetch")) {
+        try {
+          const chatCompletion = await groq.chat.completions.create({
+            messages: [{ role: "user", content: prompt }],
+            model: "llama-3.1-8b-instant",
+            temperature: 0.5,
+          });
+          return chatCompletion.choices[0]?.message?.content || "Sorry, I am having trouble responding right now.";
+        } catch (groqErr) {
+          console.error("Groq Chat Fallback Error:", groqErr);
+          return "⚠️ Both AI engines are currently unavailable due to quota limits. Please wait a moment.";
+        }
+      }
+      return "⚠️ Chat is temporarily unavailable. Please try again.";
     }
   }
 

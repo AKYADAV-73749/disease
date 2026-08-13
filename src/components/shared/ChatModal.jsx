@@ -21,9 +21,13 @@ export default function ChatModal() {
     if (!chatInput.trim() || chatLoading) return;
     const msg = chatInput.trim();
     setChatInput("");
-    setChatMessages(prev => [...prev, { role: "user", text: msg }]);
+    const newHistory = [...chatMessages, { role: "user", text: msg }];
+    setChatMessages(newHistory);
     setChatLoading(true);
-    await sendChatMessage(msg);
+    const response = await sendChatMessage(msg, result, newHistory);
+    if (response) {
+      setChatMessages(prev => [...prev, { role: "model", text: response }]);
+    }
     setChatLoading(false);
   };
 
