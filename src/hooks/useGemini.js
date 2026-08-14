@@ -5,7 +5,8 @@ import { EXPERT_CONTEXT } from "../expertData";
 import Groq from "groq-sdk";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const groq = new Groq({ apiKey: import.meta.env.VITE_GROQ_API_KEY, dangerouslyAllowBrowser: true });
+const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
+const groq = groqApiKey ? new Groq({ apiKey: groqApiKey, dangerouslyAllowBrowser: true }) : null;
 
 function buildProfileContext(healthProfile) {
   if (!healthProfile || !healthProfile.name) return "";
@@ -27,6 +28,11 @@ Consider this profile when assessing risk factors, medication interactions, and 
 // MULTI-AI FALLBACK ENGINE (Groq / Llama 3)
 // -------------------------------------------------------------
 async function generateGroqFallback(prompt) {
+  if (!groq) {
+    console.warn("Groq API key is missing. Multi-AI fallback disabled.");
+    return null;
+  }
+  
   try {
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
@@ -232,6 +238,8 @@ Reply to last message. Max 3 sentences. Always recommend real doctor for serious
     } catch (e) {
       console.error(e);
       if (String(e).includes("429") || String(e).includes("fetch")) {
+        if (!groq) return "⚠️ Chat is temporarily unavailable due to AI quota limits (Error 429). Please wait a moment.";
+        
         try {
           const chatCompletion = await groq.chat.completions.create({
             messages: [{ role: "user", content: prompt }],
