@@ -24,7 +24,7 @@ export function useVoice() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     currentRecognition = new SR();
     currentRecognition.lang = langCode;
-    currentRecognition.continuous = false;
+    currentRecognition.continuous = true; // Keeps listening even if they pause
     currentRecognition.interimResults = false;
     
     currentRecognition.onstart = () => setIsListening(true);
@@ -34,14 +34,23 @@ export function useVoice() {
       console.error("Speech recognition error:", event.error);
       setIsListening(false);
       if (event.error === "not-allowed") {
-        alert("Microphone access is blocked! Please allow microphone permissions in your browser settings to use voice typing.");
+        alert("Microphone access is blocked! Please allow permissions in your browser.");
+      } else if (event.error === "audio-capture") {
+        alert("No microphone found. Please ensure a microphone is connected.");
+      } else if (event.error === "no-speech") {
+        // Ignored, usually just means silence timeout
+      } else {
+        alert(`Microphone error: ${event.error}`);
       }
     };
 
     currentRecognition.onresult = (e) => {
-      if (e.results && e.results[0] && e.results[0][0]) {
-        const text = e.results[0][0].transcript;
-        onResult(text);
+      if (!e.results) return;
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        if (e.results[i].isFinal) {
+          const text = e.results[i][0].transcript.trim();
+          if (text) onResult(text);
+        }
       }
     };
     
