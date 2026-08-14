@@ -1,12 +1,15 @@
 // src/components/results/ResultPanel.jsx
 import React from "react";
-import { Sparkles, HeartPulse, Stethoscope, Thermometer, AlertTriangle, FileDown, Share2, MapPin, MessageCircle, BrainCircuit } from "lucide-react";
+import { Sparkles, HeartPulse, Stethoscope, Thermometer, AlertTriangle, FileDown, Share2, MapPin, MessageCircle, BrainCircuit, Volume2, Square } from "lucide-react";
 import { motion } from "framer-motion";
 import { useApp } from "../../context/AppContext";
+import { useVoice } from "../../hooks/useVoice";
 
 export default function ResultPanel() {
-  const { t, darkMode, result, loading, setIsChatOpen, downloadPDF, handleShare } = useApp();
+  const { t, darkMode, result, loading, setIsChatOpen, downloadPDF, handleShare, lang } = useApp();
+  const { isSpeaking, speak, stopSpeaking } = useVoice();
   const dm = darkMode;
+  const langCode = lang === "hi" ? "hi-IN" : "en-US";
 
   if (loading && !result) return (
     <div className={`absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md rounded-[2.5rem] z-20 border shadow-2xl ${dm ? "bg-slate-900/60 border-slate-800" : "bg-white/40 border-white"}`}>
@@ -58,8 +61,13 @@ export default function ResultPanel() {
             <div className="bg-white/10 p-3.5 rounded-2xl backdrop-blur-md shadow-inner ring-1 ring-white/10">
               <Sparkles className="w-8 h-8 text-yellow-300" />
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-2">{t.analysis_title}</h3>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-2xl font-bold text-white">{t.analysis_title}</h3>
+                <button onClick={() => isSpeaking ? stopSpeaking() : speak(result.analysis, langCode)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                  {isSpeaking ? <Square className="w-5 h-5 text-yellow-300" /> : <Volume2 className="w-5 h-5 text-slate-300" />}
+                </button>
+              </div>
               <p className="text-slate-300 text-sm leading-relaxed font-medium">{result.analysis}</p>
             </div>
           </div>

@@ -7,11 +7,12 @@ import { useVoice } from "../../hooks/useVoice";
 import { COMMON_SYMPTOMS } from "../../constants/symptoms";
 
 export default function SymptomsTab() {
-  const { t, darkMode, loading, expertMode, setExpertMode, healthProfile } = useApp();
+  const { t, darkMode, loading, expertMode, setExpertMode, healthProfile, lang } = useApp();
   const { analyzeSymptoms } = useGemini();
   const { isListening, toggleVoice } = useVoice();
   const [input, setInput] = useState("");
   const dm = darkMode;
+  const langCode = lang === "hi" ? "hi-IN" : "en-US";
 
   const addSymptom = (s) => {
     if (input.includes(s)) return;
@@ -52,7 +53,7 @@ export default function SymptomsTab() {
           value={input}
           onChange={e => setInput(e.target.value)}
         />
-        <button onClick={() => toggleVoice(text => setInput(prev => prev ? `${prev} ${text}` : text))}
+        <button onClick={() => toggleVoice(text => setInput(prev => prev ? `${prev} ${text}` : text), langCode)}
           className={`absolute bottom-4 right-4 p-3 rounded-full transition-all duration-300 ${isListening ? "bg-rose-500 text-white shadow-lg scale-110 animate-pulse" : (dm ? "bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600" : "bg-white text-slate-400 hover:text-teal-600 shadow-md hover:scale-105")}`}>
           <Mic className="w-5 h-5" />
         </button>

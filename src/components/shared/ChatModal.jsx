@@ -1,16 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
-import { BrainCircuit, X, MessageCircle, Send, User, Bot, Loader2 } from "lucide-react";
+import { BrainCircuit, X, MessageCircle, Send, User, Bot, Loader2, Mic, Volume2, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "../../context/AppContext";
 import { useGemini } from "../../hooks/useGemini";
+import { useVoice } from "../../hooks/useVoice";
 
 export default function ChatModal() {
-  const { t, darkMode, isChatOpen, setIsChatOpen, result, chatMessages, setChatMessages } = useApp();
+  const { t, darkMode, isChatOpen, setIsChatOpen, result, chatMessages, setChatMessages, lang } = useApp();
   const { sendChatMessage } = useGemini();
+  const { isListening, isSpeaking, toggleVoice, speak, stopSpeaking } = useVoice();
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
   const dm = darkMode;
+  const langCode = lang === "hi" ? "hi-IN" : "en-US";
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,6 +89,11 @@ export default function ChatModal() {
                 >
                   <div className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${msg.role === "user" ? "bg-teal-600 text-white rounded-br-none" : (dm ? "bg-slate-800 border border-slate-700 text-slate-200 rounded-bl-none" : "bg-white border border-slate-200 text-slate-700 rounded-bl-none")}`}>
                     {msg.text}
+                    {msg.role === "model" && (
+                      <button onClick={() => isSpeaking ? stopSpeaking() : speak(msg.text, langCode)} className="ml-2 inline-block align-middle p-1 rounded hover:bg-slate-200/20 transition-colors">
+                        {isSpeaking ? <Square className="w-4 h-4 text-teal-500" /> : <Volume2 className="w-4 h-4 text-slate-400" />}
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -107,6 +115,10 @@ export default function ChatModal() {
                 <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                   placeholder={t.chat_ph}
                   className={`flex-1 bg-transparent px-4 py-2 outline-none text-sm font-medium ${dm ? "text-white placeholder-slate-500" : "text-slate-900 placeholder-slate-400"}`} />
+                <button type="button" onClick={() => toggleVoice(text => setChatInput(prev => prev ? `${prev} ${text}` : text), langCode)}
+                  className={`p-3 rounded-xl transition-all ${isListening ? "bg-rose-500 text-white animate-pulse shadow-md" : (dm ? "bg-slate-800 text-slate-400 hover:text-white" : "bg-slate-100 text-slate-500 hover:text-teal-600")}`}>
+                  <Mic className="w-5 h-5" />
+                </button>
                 <button type="submit" disabled={!chatInput.trim() || chatLoading}
                   className={`p-3 rounded-xl transition-all ${!chatInput.trim() || chatLoading ? (dm ? "bg-slate-800 text-slate-600" : "bg-slate-200 text-slate-400") : "bg-teal-600 text-white shadow-md hover:bg-teal-700 active:scale-95"}`}>
                   {chatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
