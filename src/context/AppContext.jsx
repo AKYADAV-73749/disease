@@ -1,4 +1,4 @@
-﻿// src/context/AppContext.jsx
+// src/context/AppContext.jsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
@@ -14,8 +14,12 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const [user,        setUser]        = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [lang,        setLang]        = useState("en");
-  const [darkMode,    setDarkMode]    = useState(false);
+  const [lang, setLang] = useState(() => {
+    return localStorage.getItem("disease_detector_lang") || "en";
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("disease_detector_dark") === "true";
+  });
   const [result,      setResult]      = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
@@ -36,6 +40,17 @@ export function AppProvider({ children }) {
     });
     return unsub;
   }, []);
+
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem("disease_detector_lang", lang);
+    localStorage.setItem("disease_detector_dark", darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [lang, darkMode]);
 
   // Load history
   useEffect(() => {
