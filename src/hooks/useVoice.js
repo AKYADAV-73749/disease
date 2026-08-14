@@ -64,10 +64,8 @@ export function useVoice() {
     
     currentUtterance = new SpeechSynthesisUtterance(text);
     currentUtterance.lang = langCode;
-    
-    const voices = window.speechSynthesis.getVoices();
-    const targetVoice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
-    if (targetVoice) currentUtterance.voice = targetVoice;
+    // Let the browser/OS automatically pick the best voice for the langCode
+    // Avoid manual getVoices() filtering as it is async and often fails on first load.
 
     currentUtterance.onstart = () => setIsSpeaking(true);
     currentUtterance.onend = () => setIsSpeaking(false);

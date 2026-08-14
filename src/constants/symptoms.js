@@ -1,11 +1,11 @@
-﻿// src/constants/symptoms.js
+// src/constants/symptoms.js
 export const COMMON_SYMPTOMS = [
-  "Headache","Fever","Cough","Fatigue","Skin Rash",
-  "Stomach Pain","Nausea","Dizziness","Sore Throat","Joint Pain",
-  "Chest Pain","Shortness of Breath","Back Pain","Body Ache","Vomiting",
-  "Diarrhea","Chills","Sweating","Loss of Appetite","Weakness",
-  "Swollen Lymph Nodes","Yellow Skin (Jaundice)","Eye Redness","Ear Pain","Runny Nose",
-  "Muscle Cramps","Frequent Urination","Burning Urination","Swollen Joints","Hair Loss"
+  { en: "Headache", hi: "सिरदर्द" }, { en: "Fever", hi: "बुखार" }, { en: "Cough", hi: "खांसी" }, { en: "Fatigue", hi: "थकान" }, { en: "Skin Rash", hi: "त्वचा पर दाने" },
+  { en: "Stomach Pain", hi: "पेट दर्द" }, { en: "Nausea", hi: "जी मिचलाना" }, { en: "Dizziness", hi: "चक्कर आना" }, { en: "Sore Throat", hi: "गले में खराश" }, { en: "Joint Pain", hi: "जोड़ों का दर्द" },
+  { en: "Chest Pain", hi: "छाती में दर्द" }, { en: "Shortness of Breath", hi: "सांस लेने में तकलीफ" }, { en: "Back Pain", hi: "कमर दर्द" }, { en: "Body Ache", hi: "बदन दर्द" }, { en: "Vomiting", hi: "उल्टी" },
+  { en: "Diarrhea", hi: "दस्त" }, { en: "Chills", hi: "ठंड लगना" }, { en: "Sweating", hi: "पसीना आना" }, { en: "Loss of Appetite", hi: "भूख न लगना" }, { en: "Weakness", hi: "कमजोरी" },
+  { en: "Swollen Lymph Nodes", hi: "सूजी हुई लिम्फ नोड्स" }, { en: "Yellow Skin (Jaundice)", hi: "पीली त्वचा (पीलिया)" }, { en: "Eye Redness", hi: "आंखों का लाल होना" }, { en: "Ear Pain", hi: "कान में दर्द" }, { en: "Runny Nose", hi: "बहती नाक" },
+  { en: "Muscle Cramps", hi: "मांसपेशियों में ऐंठन" }, { en: "Frequent Urination", hi: "बार-बार पेशाब आना" }, { en: "Burning Urination", hi: "पेशाब में जलन" }, { en: "Swollen Joints", hi: "सूजे हुए जोड़" }, { en: "Hair Loss", hi: "बाल झड़ना" }
 ];
 
 export const BLOOD_GROUPS = ["A+","A-","B+","B-","AB+","AB-","O+","O-","Unknown"];

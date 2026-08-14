@@ -14,7 +14,8 @@ export default function SymptomsTab() {
   const dm = darkMode;
   const langCode = lang === "hi" ? "hi-IN" : "en-US";
 
-  const addSymptom = (s) => {
+  const addSymptom = (sObj) => {
+    const s = sObj[lang] || sObj.en;
     if (input.includes(s)) return;
     setInput(prev => prev ? `${prev}, ${s}` : s);
   };
@@ -62,9 +63,9 @@ export default function SymptomsTab() {
       {/* Symptom chips */}
       <div className="mt-5 flex flex-wrap gap-2">
         {COMMON_SYMPTOMS.map(s => (
-          <button key={s} onClick={() => addSymptom(s)}
+          <button key={s.en} onClick={() => addSymptom(s)}
             className={`px-3 py-1.5 border rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95 ${dm ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-teal-900/30 hover:border-teal-700 hover:text-teal-400" : "bg-white border-slate-100 text-slate-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700"}`}>
-            <Plus className="w-3 h-3" />{s}
+            <Plus className="w-3 h-3" />{s[lang] || s.en}
           </button>
         ))}
       </div>

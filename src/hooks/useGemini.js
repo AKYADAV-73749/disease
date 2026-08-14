@@ -72,7 +72,7 @@ export function useGemini() {
       }
       prompt = `${basePrompt}\n${profileCtx}
 Analyze symptoms: "${input}".
-CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response in ${langLabel}. Even if the JSON keys are in English, the values MUST be strictly in ${langLabel}. Do not output English if ${langLabel} is requested.
+CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response strictly in ${langLabel}. Translate ALL medical terms, disease names, and actions into ${langLabel}. Do NOT mix English and ${langLabel}. If ${langLabel} is requested, output 100% ${langLabel}.
 Return ONLY valid JSON (no markdown):
 {
   "analysis": "1-sentence summary",
@@ -120,7 +120,7 @@ Return ONLY valid JSON (no markdown):
       });
       const prompt = `${profileCtx}
 Analyze this medical image for visual symptoms.
-CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response in ${langLabel}. Even if the JSON keys are in English, the values MUST be strictly in ${langLabel}. Do not output English if ${langLabel} is requested.
+CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response strictly in ${langLabel}. Translate ALL medical terms, disease names, and actions into ${langLabel}. Do NOT mix English and ${langLabel}. If ${langLabel} is requested, output 100% ${langLabel}.
 Return ONLY valid JSON:
 {"analysis":"","potential_conditions":[{"name":"","probability":"","reason":""}],"cureness_probability":"","cureness_color":"green|yellow|red","specialist":"","immediate_action":[],"disclaimer":""}`;
       const res = await model.generateContent([prompt, { inlineData: { data: base64, mimeType: imageFile.type }}]);
@@ -160,7 +160,7 @@ Return ONLY valid JSON:
       });
       const prompt = `${profileCtx}
 Analyze this medical lab report. Extract key metrics, highlight abnormal values, and provide a medical summary.
-CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response in ${langLabel}. Even if the JSON keys are in English, the values MUST be strictly in ${langLabel}. Do not output English if ${langLabel} is requested.
+CRITICAL INSTRUCTION: You MUST write ALL text values in the JSON response strictly in ${langLabel}. Translate ALL medical terms, disease names, and actions into ${langLabel}. Do NOT mix English and ${langLabel}. If ${langLabel} is requested, output 100% ${langLabel}.
 Return ONLY valid JSON:
 {"analysis":"Summary of key findings","potential_conditions":[{"name":"Test Name","probability":"Value - STATUS","reason":"What this means"}],"cureness_probability":"Normal Report|Abnormal Report","cureness_color":"green|red","specialist":"Pathologist|General Physician","immediate_action":["Recommendation"],"disclaimer":"AI reading - verify with doctor"}`;
       const res = await model.generateContent([prompt, { inlineData: { data: base64, mimeType: imageFile.type }}]);
@@ -230,7 +230,7 @@ Return ONLY valid JSON:
       const history = chatMessages.map(m => `${m.role === "user" ? "User" : "Doctor"}: ${m.text}`).join("\n");
       prompt = `${ctxInstruction}${profileCtx}
 Act as a helpful medical AI doctor. Keep responses brief, conversational, and strictly related to the patient's context.
-CRITICAL INSTRUCTION: You MUST reply in ${langLabel}. Your entire response MUST be in ${langLabel}.
+CRITICAL INSTRUCTION: You MUST reply entirely in ${langLabel}. Translate all medical jargon into ${langLabel}. Do NOT mix languages.
 
 Patient Context: Analysis: ${result.analysis} | Conditions: ${result.potential_conditions.map(c=>c.name).join(", ")} | Specialist: ${result.specialist}
 CONVERSATION:\n${history}
