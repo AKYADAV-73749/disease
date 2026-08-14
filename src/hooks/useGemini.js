@@ -49,6 +49,32 @@ async function generateGroqFallback(prompt) {
   }
 }
 
+async function generateGroqVisionFallback(prompt, base64Image, mimeType) {
+  if (!groq) return null;
+  try {
+    console.log("Initiating Groq Vision Fallback...");
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } }
+          ]
+        }
+      ],
+      model: "llama-3.2-11b-vision-preview",
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+    const text = chatCompletion.choices[0]?.message?.content || "";
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Groq Vision Fallback Error:", error);
+    return null;
+  }
+}
+
 
 export function useGemini() {
   const {
@@ -128,19 +154,25 @@ Return ONLY valid JSON:
       setResult(data);
       saveToHistory(data, "Image Analysis");
     } catch (e) {
-      console.error(e);
-      if (String(e).includes("429") || String(e).includes("fetch")) {
-        setResult({
-          analysis: "⚠️ Gemini AI Quota Exceeded (Rate Limit).",
-          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Groq fallback does not support image analysis yet." }],
-          cureness_probability: "API Blocked",
-          cureness_color: "red",
-          specialist: "N/A",
-          immediate_action: ["Wait 1 minute for quota to reset.", "Try describing your symptoms in the Symptoms tab instead."],
-          disclaimer: "Automatic system response."
-        });
+      console.error("Gemini Vision failed, trying Groq Vision fallback...", e);
+      const fallbackData = await generateGroqVisionFallback(prompt, base64, imageFile.type);
+      if (fallbackData) {
+        setResult(fallbackData);
+        saveToHistory(fallbackData, "Image Analysis");
       } else {
-        setError("Error analyzing image. Ensure the image is clear.");
+        if (String(e).includes("429") || String(e).includes("fetch")) {
+          setResult({
+            analysis: "⚠️ All AI Systems Quota Exceeded.",
+            potential_conditions: [{ name: "Rate Limit", probability: "100%", reason: "Both Gemini and Groq Vision fallbacks failed." }],
+            cureness_probability: "API Blocked",
+            cureness_color: "red",
+            specialist: "N/A",
+            immediate_action: ["Wait 1 minute for quota to reset."],
+            disclaimer: "Automatic system response."
+          });
+        } else {
+          setError("Error analyzing image. Ensure the image is clear.");
+        }
       }
     }
     setLoading(false);
@@ -168,19 +200,17 @@ Return ONLY valid JSON:
       setResult(data);
       saveToHistory(data, "Lab Report Analysis");
     } catch (e) {
-      console.error(e);
-      if (String(e).includes("429") || String(e).includes("fetch")) {
-        setResult({
-          analysis: "⚠️ Gemini AI Quota Exceeded (Rate Limit).",
-          potential_conditions: [{ name: "Rate Limit 429", probability: "100%", reason: "Groq fallback does not support PDF/Image analysis yet." }],
-          cureness_probability: "API Blocked",
-          cureness_color: "red",
-          specialist: "N/A",
-          immediate_action: ["Wait 1 minute for quota to reset."],
-          disclaimer: "Automatic system response."
-        });
+      console.error("Gemini Report Analysis failed, trying Groq Vision fallback...", e);
+      const fallbackData = await generateGroqVisionFallback(prompt, base64, imageFile.type);
+      if (fallbackData) {
+        setResult(fallbackData);
+        saveToHistory(fallbackData, "Lab Report Analysis (Groq)");
       } else {
-        setError("Error reading report. Ensure text is clear.");
+        if (String(e).includes("429") || String(e).includes("fetch")) {
+           setError("⚠️ AI Quota Exceeded. Please try again later.");
+        } else {
+           setError("Error reading report. Ensure text is clear.");
+        }
       }
     }
     setLoading(false);
