@@ -4,7 +4,7 @@ import { BrainCircuit, Loader2, Mic, Plus, BookOpenCheck } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useGemini } from "../../hooks/useGemini";
 import { useVoice } from "../../hooks/useVoice";
-import { COMMON_SYMPTOMS } from "../../constants/symptoms";
+import BodyMap from "./BodyMap";
 
 export default function SymptomsTab() {
   const { t, darkMode, loading, expertMode, setExpertMode, healthProfile, lang } = useApp();
@@ -60,15 +60,8 @@ export default function SymptomsTab() {
         </button>
       </div>
 
-      {/* Symptom chips */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {COMMON_SYMPTOMS.map(s => (
-          <button key={s.en} onClick={() => addSymptom(s)}
-            className={`px-3 py-1.5 border rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95 ${dm ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-teal-900/30 hover:border-teal-700 hover:text-teal-400" : "bg-white border-slate-100 text-slate-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700"}`}>
-            <Plus className="w-3 h-3" />{s[lang] || s.en}
-          </button>
-        ))}
-      </div>
+      {/* Interactive Body Map */}
+      <BodyMap onRegionClick={addSymptom} />
 
       <button onClick={() => analyzeSymptoms(input)} disabled={!input.trim() || loading}
         className="mt-8 w-full py-4 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-xl shadow-teal-500/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98] group">
