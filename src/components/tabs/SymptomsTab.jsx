@@ -64,8 +64,8 @@ export default function SymptomsTab() {
       <BodyMap onRegionClick={addSymptom} />
 
       <button onClick={() => analyzeSymptoms(input)} disabled={!input.trim() || loading}
-        className="mt-8 w-full py-4 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-xl shadow-teal-500/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98] group">
-        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <BrainCircuit className="w-6 h-6 group-hover:scale-110 transition-transform" />}
+        className="mt-8 w-full py-4 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:hover:bg-teal-600 disabled:hover:-translate-y-0 disabled:hover:shadow-[0_0_20px_rgba(45,212,191,0.2)] disabled:cursor-not-allowed text-white rounded-2xl font-extrabold tracking-wide shadow-[0_0_20px_rgba(45,212,191,0.2)] hover:shadow-[0_0_40px_rgba(45,212,191,0.6)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 active:scale-[0.98] group">
+        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <BrainCircuit className="w-6 h-6 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />}
         <span className="text-lg">{loading ? t.btn_analyzing : t.btn_analyze}</span>
       </button>
     </div>
