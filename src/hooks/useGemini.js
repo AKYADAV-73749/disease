@@ -81,7 +81,7 @@ export function useGemini() {
     setResult, setLoading, setError, setChatMessages, setIsChatOpen,
     expertMode, lang, saveToHistory, healthProfile
   } = useApp();
-
+  
   const langLabel = lang === "hi" ? "Hindi" : "English";
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
