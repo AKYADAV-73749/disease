@@ -34,12 +34,12 @@ export default function ResultPanel() {
     </div>
   );
 
-  const colorClass = {
+  const colorMap = {
     green:  { bg: dm ? "bg-emerald-900/20 border-emerald-800" : "bg-emerald-50 border-emerald-100", icon: dm ? "bg-emerald-900/50 text-emerald-400" : "bg-emerald-100 text-emerald-600", text: dm ? "text-emerald-400" : "text-emerald-800", val: dm ? "text-emerald-300" : "text-emerald-900", bar: "bg-emerald-500" },
     yellow: { bg: dm ? "bg-yellow-900/20 border-yellow-800" : "bg-yellow-50 border-yellow-100",   icon: dm ? "bg-yellow-900/50 text-yellow-400" : "bg-yellow-100 text-yellow-600",   text: dm ? "text-yellow-400" : "text-yellow-800",   val: dm ? "text-yellow-300" : "text-yellow-900",   bar: "bg-yellow-500" },
     red:    { bg: dm ? "bg-rose-900/20 border-rose-800" : "bg-rose-50 border-rose-100",         icon: dm ? "bg-rose-900/50 text-rose-400" : "bg-rose-100 text-rose-600",         text: dm ? "text-rose-400" : "text-rose-800",         val: dm ? "text-rose-300" : "text-rose-900",         bar: "bg-rose-500" },
-  }[result.cureness_color] || colorClass?.green;
-  const cc = colorClass;
+  };
+  const cc = colorMap[result.cureness_color?.toLowerCase()] || colorMap.green;
 
   return (
     <motion.div 
