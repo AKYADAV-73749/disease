@@ -24,7 +24,7 @@ export function useVoice() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     currentRecognition = new SR();
     currentRecognition.lang = langCode;
-    currentRecognition.continuous = true; // Keeps listening even if they pause
+    currentRecognition.continuous = false; // Reverted to false so it types immediately after a phrase
     currentRecognition.interimResults = false;
     
     currentRecognition.onstart = () => setIsListening(true);
@@ -45,12 +45,9 @@ export function useVoice() {
     };
 
     currentRecognition.onresult = (e) => {
-      if (!e.results) return;
-      for (let i = e.resultIndex; i < e.results.length; ++i) {
-        if (e.results[i].isFinal) {
-          const text = e.results[i][0].transcript.trim();
-          if (text) onResult(text);
-        }
+      if (e.results && e.results[0] && e.results[0][0]) {
+        const text = e.results[0][0].transcript.trim();
+        if (text) onResult(text);
       }
     };
     
