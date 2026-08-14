@@ -17,9 +17,7 @@ export function AppProvider({ children }) {
   const [lang, setLang] = useState(() => {
     return localStorage.getItem("disease_detector_lang") || "en";
   });
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem("disease_detector_dark") === "true";
-  });
+  const darkMode = true;
   const [result,      setResult]      = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
@@ -44,13 +42,8 @@ export function AppProvider({ children }) {
   // Persist settings
   useEffect(() => {
     localStorage.setItem("disease_detector_lang", lang);
-    localStorage.setItem("disease_detector_dark", darkMode);
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [lang, darkMode]);
+    document.documentElement.classList.add("dark");
+  }, [lang]);
 
   // Load history
   useEffect(() => {
@@ -150,7 +143,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      user, authLoading, lang, setLang, darkMode, setDarkMode, t,
+      user, authLoading, lang, setLang, darkMode, t,
       result, setResult, loading, setLoading, error, setError,
       history, saveToHistory, clearHistory, loadHistoryItem,
       expertMode, setExpertMode,

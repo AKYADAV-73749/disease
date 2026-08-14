@@ -1,17 +1,17 @@
-﻿// src/components/layout/Header.jsx
+// src/components/layout/Header.jsx
 import React from "react";
-import { Stethoscope, ShieldAlert, Moon, Sun, LogOut, Languages } from "lucide-react";
+import { Stethoscope, ShieldAlert, LogOut, Languages } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
 export default function Header() {
-  const { t, lang, setLang, darkMode, setDarkMode, handleLogout, user } = useApp();
+  const { t, lang, setLang, darkMode, handleLogout, user } = useApp();
   const dm = darkMode;
 
   return (
-    <header className={`sticky top-0 z-50 shadow-sm transition-colors duration-500 ${dm ? "bg-slate-900/80 border-slate-800 backdrop-blur-xl border-b" : "bg-white/70 border-white/50 backdrop-blur-xl border-b"}`}>
-      <div className="max-w-6xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-teal-600 to-teal-400 p-2.5 rounded-2xl shadow-lg shadow-teal-500/20">
+    <header className={`sticky top-0 z-50 transition-all duration-500 ${dm ? "bg-[#050505]/60 backdrop-blur-3xl shadow-[0_4px_30px_rgba(0,0,0,0.5)]" : "bg-white/60 backdrop-blur-3xl shadow-[0_4px_30px_rgba(0,0,0,0.05)]"}`}>
+      <div className="max-w-[1400px] mx-auto px-6 md:px-12 h-24 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="bg-gradient-to-tr from-teal-600 to-teal-400 p-3 rounded-2xl shadow-[0_0_20px_rgba(45,212,191,0.3)]">
             <Stethoscope className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -22,17 +22,11 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
-          {/* Dark Mode */}
-          <button onClick={() => setDarkMode(!dm)}
-            className={`flex items-center justify-center p-2 rounded-full shadow-sm border transition-all ${dm ? "bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
-            {dm ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
           {/* Language */}
           <button onClick={() => setLang(l => l === "en" ? "hi" : "en")}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold shadow-sm border hover:scale-105 transition-all ${dm ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-700"}`}>
-            <Languages className="w-3.5 h-3.5 text-teal-600" />
-            {lang === "en" ? "🇺🇸 EN" : "🇮🇳 HI"}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold shadow-sm transition-all hover:scale-105 active:scale-95 ${dm ? "bg-[#111] text-slate-300" : "bg-white text-slate-700"}`}>
+            <Languages className="w-4 h-4 text-teal-500" />
+            {lang === "en" ? "EN" : "HI"}
           </button>
 
           {/* Badge */}
@@ -42,7 +36,7 @@ export default function Header() {
 
           {/* Logout */}
           <button onClick={handleLogout}
-            className={`flex items-center gap-2 text-xs font-bold hover:text-rose-600 transition-colors px-3 py-2 rounded-xl border ${dm ? "bg-slate-800 border-slate-700 text-slate-400 hover:bg-rose-900/30" : "bg-white border-slate-200 text-slate-500 hover:bg-rose-50"}`}>
+            className={`flex items-center gap-2 text-xs font-bold hover:text-rose-500 transition-all px-4 py-2.5 rounded-2xl ${dm ? "bg-[#111] text-slate-400 hover:bg-rose-950/30" : "bg-white text-slate-500 hover:bg-rose-50"}`}>
             <LogOut className="w-4 h-4" />
             <span className="hidden md:inline">Logout</span>
           </button>

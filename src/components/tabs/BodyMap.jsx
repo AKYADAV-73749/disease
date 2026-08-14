@@ -49,7 +49,7 @@ export default function BodyMap({ onRegionClick }) {
         onMouseLeave={handleMouseLeave}
         onTouchMove={(e) => handleMouseMove(e.touches[0])}
         onTouchEnd={handleMouseLeave}
-        className="relative w-full max-w-sm mx-auto aspect-square rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(13,148,136,0.2)] bg-[#050505] border border-teal-900/50"
+        className="relative w-full max-w-[400px] mx-auto aspect-[3/4]"
         style={{ perspective: "1000px" }}
       >
         {/* Hologram Chamber (3D transform wrapper) */}
@@ -70,7 +70,7 @@ export default function BodyMap({ onRegionClick }) {
           <img 
             src="/medical_body.jpg" 
             alt="Medical Body Scan" 
-            className="absolute inset-0 w-full h-full object-cover opacity-90 mix-blend-screen"
+            className="absolute inset-0 w-full h-full object-contain opacity-90 mix-blend-screen"
             draggable={false}
             style={{ transform: "translateZ(10px)" }}
           />
