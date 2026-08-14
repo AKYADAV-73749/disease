@@ -1,8 +1,9 @@
 // src/hooks/useVoice.js
 import { useState } from "react";
 
-// Store utterance globally to prevent browser garbage collection mid-speech
+// Store globally to prevent browser garbage collection mid-speech or mid-recording
 let currentUtterance = null;
+let currentRecognition = null;
 
 export function useVoice() {
   const [isListening, setIsListening] = useState(false);
@@ -13,18 +14,42 @@ export function useVoice() {
       alert("Voice input not supported in this browser.");
       return;
     }
+    
+    if (isListening && currentRecognition) {
+      currentRecognition.stop();
+      setIsListening(false);
+      return;
+    }
+
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SR();
-    recognition.lang = langCode;
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend   = () => setIsListening(false);
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      onResult(text);
+    currentRecognition = new SR();
+    currentRecognition.lang = langCode;
+    currentRecognition.continuous = false;
+    currentRecognition.interimResults = false;
+    
+    currentRecognition.onstart = () => setIsListening(true);
+    currentRecognition.onend   = () => setIsListening(false);
+    
+    currentRecognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        alert("Microphone access is blocked! Please allow microphone permissions in your browser settings to use voice typing.");
+      }
     };
-    recognition.start();
+
+    currentRecognition.onresult = (e) => {
+      if (e.results && e.results[0] && e.results[0][0]) {
+        const text = e.results[0][0].transcript;
+        onResult(text);
+      }
+    };
+    
+    try {
+      currentRecognition.start();
+    } catch (e) {
+      console.error("Failed to start recognition", e);
+    }
   };
 
   const speak = (text, langCode = "en-US") => {
